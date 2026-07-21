@@ -1,0 +1,138 @@
+@import "tailwindcss";
+
+@theme {
+  --font-display: "Playfair Display", Georgia, serif;
+  --font-sans: "Manrope", system-ui, "Segoe UI", Roboto, sans-serif;
+
+  --color-ink: #0b0710;
+  --color-surface: #17111f;
+  --color-surface-2: #1f1729;
+  --color-surface-3: #2a2036;
+  --color-border: #3a2f49;
+
+  --color-gold: #e8b84c;
+  --color-gold-soft: #f4d78a;
+  --color-gold-dark: #a8792a;
+
+  --color-magenta: #e8408f;
+  --color-violet: #9b3bff;
+  --color-emerald: #1fbf83;
+  --color-ruby: #e5344a;
+  --color-azure: #3bb4ff;
+
+  --shadow-glow-gold: 0 0 24px rgba(232, 184, 76, 0.35);
+  --shadow-glow-violet: 0 0 30px rgba(155, 59, 255, 0.35);
+
+  --animate-spin-reel: spin-reel 0.15s linear infinite;
+  --animate-float: float 6s ease-in-out infinite;
+  --animate-shimmer: shimmer 2.4s linear infinite;
+  --animate-coin: coin-pop 0.6s ease-out;
+}
+
+@keyframes spin-reel {
+  from {
+    transform: translateY(0);
+  }
+  to {
+    transform: translateY(-25%);
+  }
+}
+
+@keyframes float {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+@keyframes coin-pop {
+  0% {
+    transform: scale(0.6) translateY(10px);
+    opacity: 0;
+  }
+  60% {
+    transform: scale(1.08) translateY(-4px);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1) translateY(0);
+    opacity: 1;
+  }
+}
+
+html {
+  color-scheme: dark;
+}
+
+body {
+  margin: 0;
+  min-height: 100svh;
+  font-family: var(--font-sans);
+  background:
+    radial-gradient(1200px 600px at 15% -10%, rgba(155, 59, 255, 0.16), transparent 60%),
+    radial-gradient(1000px 500px at 100% 0%, rgba(232, 184, 76, 0.1), transparent 55%),
+    var(--color-ink);
+  color: #ece5f2;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+#root {
+  min-height: 100svh;
+  display: flex;
+  flex-direction: column;
+}
+
+::selection {
+  background: rgba(232, 184, 76, 0.35);
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-track {
+  background: var(--color-ink);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--color-surface-3);
+  border-radius: 999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-gold-dark);
+}
+
+.text-gradient-gold {
+  background: linear-gradient(90deg, var(--color-gold-soft), var(--color-gold) 45%, var(--color-gold-dark));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.card-felt {
+  background:
+    radial-gradient(120% 140% at 50% -20%, rgba(31, 191, 131, 0.25), transparent 60%),
+    linear-gradient(180deg, #0e2d22, #0a1f19);
+}
+
+.shimmer-bg {
+  background: linear-gradient(
+    100deg,
+    rgba(255, 255, 255, 0) 30%,
+    rgba(255, 255, 255, 0.25) 45%,
+    rgba(255, 255, 255, 0) 60%
+  );
+  background-size: 200% 100%;
+}
