@@ -4,12 +4,13 @@ import { useTranslation } from 'react-i18next'
 import { useAuthStore } from '@/store/authStore'
 import { useCurrentWallet } from '@/store/useCurrentWallet'
 import { LanguageSwitcher } from '@/components/layout/LanguageSwitcher'
+import { Logo } from '@/components/layout/Logo'
 import { BalanceChip } from '@/components/layout/BalanceChip'
 import { Button } from '@/components/ui/Button'
 
 const navLinkClass = ({ isActive }: { isActive: boolean }) =>
   `relative px-1 py-2 text-sm font-semibold transition-colors ${
-    isActive ? 'text-gold-soft' : 'text-white/70 hover:text-white'
+    isActive ? 'text-gold-soft' : 'text-lilac hover:text-white'
   }`
 
 export function Header() {
@@ -49,13 +50,8 @@ export function Header() {
     <header className="sticky top-0 z-40 border-b border-border/80 bg-ink/85 backdrop-blur-md">
       <div className="mx-auto flex h-16 max-w-7xl items-center justify-between gap-4 px-4 sm:px-6">
         <div className="flex items-center gap-8">
-          <Link to="/" className="flex items-center gap-2 shrink-0">
-            <span className="flex h-9 w-9 items-center justify-center rounded-full border-2 border-gold bg-surface-2 font-display text-lg font-bold text-gold-soft shadow-glow-gold">
-              7
-            </span>
-            <span className="font-display text-xl font-bold text-gradient-gold">
-              {t('brand.name')}
-            </span>
+          <Link to="/" className="shrink-0">
+            <Logo />
           </Link>
           <nav className="hidden items-center gap-6 md:flex">
             {links.map((link) => (

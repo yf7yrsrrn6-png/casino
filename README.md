@@ -1,4 +1,4 @@
-# Lucky7 — Demo Casino
+# TakeMyLucky — Demo Casino
 
 A demo casino playground built as a front-end mock-up. No real money, no real payments, no real gambling — everything runs on a virtual demo balance stored in the browser. Built so a real game engine / backend can be wired in later.
 

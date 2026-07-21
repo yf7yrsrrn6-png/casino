@@ -11,17 +11,17 @@ interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
 
 const variantClasses: Record<Variant, string> = {
   primary:
-    'bg-gradient-to-b from-gold-soft to-gold text-ink font-bold shadow-glow-gold hover:brightness-110 active:brightness-95',
+    'bg-gradient-to-br from-magenta to-gold text-ink font-extrabold shadow-glow-magenta hover:brightness-110 active:brightness-95',
   secondary:
-    'bg-surface-3 text-white border border-border hover:border-gold/60 hover:bg-surface-2',
-  ghost: 'bg-transparent text-white/80 hover:text-white hover:bg-white/5',
+    'bg-violet/15 text-lilac border border-violet/40 hover:border-violet/70 hover:text-white',
+  ghost: 'bg-transparent text-lilac hover:text-white hover:bg-white/5',
   danger: 'bg-ruby/90 text-white hover:bg-ruby',
 }
 
 const sizeClasses: Record<Size, string> = {
-  sm: 'px-3 py-1.5 text-sm rounded-lg',
+  sm: 'px-4 py-2 text-sm rounded-xl',
   md: 'px-5 py-2.5 text-sm rounded-xl',
-  lg: 'px-7 py-3.5 text-base rounded-xl',
+  lg: 'px-7 py-3.5 text-base rounded-2xl',
 }
 
 export function Button({

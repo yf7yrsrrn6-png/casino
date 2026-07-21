@@ -30,6 +30,9 @@ export interface SlotSymbolDef {
   name: string
 }
 
+export type SlotCategory = 'slots' | 'jackpot'
+export type SlotBadge = 'new' | 'hot' | null
+
 export interface SlotDefinition {
   id: string
   name: string
@@ -39,5 +42,9 @@ export interface SlotDefinition {
   icon: string
   rtp: number
   volatility: SlotVolatility
+  category: SlotCategory
+  provider: string
+  badge: SlotBadge
+  tagline: string
   symbols: SlotSymbolDef[]
 }

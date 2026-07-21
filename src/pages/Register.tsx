@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { useAuthStore } from '@/store/authStore'
 import { Button } from '@/components/ui/Button'
+import { Logo } from '@/components/layout/Logo'
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
@@ -50,9 +51,9 @@ export function Register() {
     <div className="mx-auto flex min-h-[calc(100svh-16rem)] max-w-md items-center px-4 py-12 sm:px-6">
       <div className="w-full rounded-3xl border border-border bg-surface p-8 shadow-glow-violet">
         <div className="mb-6 text-center">
-          <span className="mx-auto flex h-12 w-12 items-center justify-center rounded-full border-2 border-gold bg-surface-2 font-display text-xl font-bold text-gold-soft">
-            7
-          </span>
+          <div className="flex justify-center">
+            <Logo size="lg" />
+          </div>
           <h1 className="mt-4 font-display text-2xl font-bold text-white">
             {t('auth.registerTitle')}
           </h1>
