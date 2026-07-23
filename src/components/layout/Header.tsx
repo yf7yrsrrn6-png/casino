@@ -1,8 +1,8 @@
 import { useState, useRef, useEffect } from 'react'
 import { NavLink, Link, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { useAuthStore } from '@/store/authStore'
-import { useCurrentWallet } from '@/store/useCurrentWallet'
+import { useSession } from '@/store/useSession'
+import { useWallet } from '@/store/useWallet'
 import { LanguageSwitcher } from '@/components/layout/LanguageSwitcher'
 import { Logo } from '@/components/layout/Logo'
 import { BalanceChip } from '@/components/layout/BalanceChip'
@@ -16,10 +16,12 @@ const navLinkClass = ({ isActive }: { isActive: boolean }) =>
 export function Header() {
   const { t } = useTranslation()
   const navigate = useNavigate()
-  const isAuthenticated = useAuthStore((s) => Boolean(s.currentUserEmail))
-  const email = useAuthStore((s) => s.currentUserEmail)
-  const logout = useAuthStore((s) => s.logout)
-  const { balance } = useCurrentWallet()
+  const user = useSession((s) => s.user)
+  const logoutSession = useSession((s) => s.logout)
+  const isAuthenticated = Boolean(user)
+  const email = user?.email ?? null
+  const isAdmin = user?.role === 'admin'
+  const balance = useWallet((s) => s.balance)
   const [mobileOpen, setMobileOpen] = useState(false)
   const [profileOpen, setProfileOpen] = useState(false)
   const profileRef = useRef<HTMLDivElement>(null)
@@ -38,10 +40,11 @@ export function Header() {
     { to: '/', label: t('nav.home') },
     { to: '/slots', label: t('nav.slots') },
     { to: '/blackjack', label: t('nav.blackjack') },
+    { to: '/roulette', label: t('nav.roulette') },
   ]
 
-  function handleLogout() {
-    logout()
+  async function handleLogout() {
+    await logoutSession()
     setProfileOpen(false)
     navigate('/')
   }
@@ -106,6 +109,15 @@ export function Header() {
                     >
                       {t('nav.settings')}
                     </Link>
+                    {isAdmin && (
+                      <Link
+                        to="/admin"
+                        onClick={() => setProfileOpen(false)}
+                        className="block px-3.5 py-2.5 text-sm text-gold-soft hover:bg-white/5"
+                      >
+                        {t('nav.admin')}
+                      </Link>
+                    )}
                     <button
                       onClick={handleLogout}
                       className="block w-full px-3.5 py-2.5 text-left text-sm text-ruby hover:bg-white/5 cursor-pointer"

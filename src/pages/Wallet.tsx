@@ -1,40 +1,50 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { useCurrentWallet } from '@/store/useCurrentWallet'
+import { useWallet } from '@/store/useWallet'
 import { Button } from '@/components/ui/Button'
-import type { TransactionRecord } from '@/types'
+import type { ApiTransaction } from '@/lib/api'
 
 const TOP_UP_PRESETS = [500, 1000, 5000, 10000]
 
-const TYPE_ICON: Record<TransactionRecord['type'], string> = {
+const TYPE_ICON: Record<ApiTransaction['type'], string> = {
   deposit: '💳',
   bet: '🎲',
   win: '🏆',
   bonus: '🎁',
+  adjustment: '🛠️',
+  refund: '↩️',
 }
 
 export function Wallet() {
   const { t, i18n } = useTranslation()
-  const { balance, transactions, deposit, resetBalance, startingBalance } = useCurrentWallet()
+  const balance = useWallet((s) => s.balance)
+  const transactions = useWallet((s) => s.transactions)
+  const deposit = useWallet((s) => s.deposit)
+  const reset = useWallet((s) => s.reset)
+  const refresh = useWallet((s) => s.refresh)
   const [customAmount, setCustomAmount] = useState('')
   const [toast, setToast] = useState<string | null>(null)
   const [confirmingReset, setConfirmingReset] = useState(false)
 
-  function handleTopUp(amount: number) {
+  useEffect(() => {
+    void refresh().catch(() => {})
+  }, [refresh])
+
+  async function handleTopUp(amount: number) {
     if (amount <= 0) return
-    deposit(amount)
+    await deposit(amount)
     setToast(t('wallet.successTopUp'))
     setCustomAmount('')
     window.setTimeout(() => setToast(null), 2500)
   }
 
-  function handleReset() {
+  async function handleReset() {
     if (!confirmingReset) {
       setConfirmingReset(true)
       window.setTimeout(() => setConfirmingReset(false), 3000)
       return
     }
-    resetBalance()
+    await reset()
     setConfirmingReset(false)
   }
 
@@ -124,7 +134,7 @@ export function Wallet() {
                       {t(`wallet.type${tx.type.charAt(0).toUpperCase()}${tx.type.slice(1)}`)}
                       {tx.label ? ` · ${tx.label}` : ''}
                     </div>
-                    <div className="text-xs text-white/35">{dateFormatter.format(tx.date)}</div>
+                    <div className="text-xs text-white/35">{dateFormatter.format(tx.created_at)}</div>
                   </div>
                 </div>
                 <span
@@ -144,9 +154,7 @@ export function Wallet() {
         <div>
           <h2 className="font-bold text-white/80">{t('wallet.resetBalance')}</h2>
           <p className="mt-1 text-xs text-white/40">
-            {confirmingReset
-              ? t('wallet.resetConfirm')
-              : `${t('wallet.resetBalance')} → ${startingBalance.toLocaleString('en-US')}`}
+            {confirmingReset ? t('wallet.resetConfirm') : t('wallet.resetHint')}
           </p>
         </div>
         <Button variant={confirmingReset ? 'danger' : 'secondary'} onClick={handleReset}>

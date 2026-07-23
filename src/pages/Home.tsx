@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useTranslation, Trans } from 'react-i18next'
-import { useAuthStore } from '@/store/authStore'
+import { useSession } from '@/store/useSession'
 import { SLOTS } from '@/data/slots'
 import { SlotCard } from '@/components/slots/SlotCard'
 import { GameTabs } from '@/components/slots/GameTabs'
@@ -24,7 +24,7 @@ function fmt(n: number) {
 
 export function Home() {
   const { t } = useTranslation()
-  const isAuthenticated = useAuthStore((s) => Boolean(s.currentUserEmail))
+  const isAuthenticated = useSession((s) => Boolean(s.user))
   const jackpot = useLiveJackpot()
   const [tab, setTab] = useState<GameTab>('all')
 
@@ -202,9 +202,9 @@ export function Home() {
         </h2>
         <div className="grid gap-5 md:grid-cols-3">
           {[
-            { key: 1, emoji: '🎡', seats: '6/7', min: 20, live: false },
-            { key: 2, emoji: '🃏', seats: '4/7', min: 100, live: true },
-            { key: 3, emoji: '🀄', seats: '5/7', min: 50, live: false },
+            { key: 1, emoji: '🎡', seats: '6/7', min: 20, to: '/roulette' },
+            { key: 2, emoji: '🃏', seats: '4/7', min: 100, to: '/blackjack' },
+            { key: 3, emoji: '🀄', seats: '5/7', min: 50, to: null },
           ].map((l) => (
             <div
               key={l.key}
@@ -231,8 +231,8 @@ export function Home() {
                     {t('live.minBet')} {l.min}
                   </div>
                 </div>
-                {l.live ? (
-                  <Link to="/blackjack">
+                {l.to ? (
+                  <Link to={l.to}>
                     <Button size="sm">{t('live.playNow')}</Button>
                   </Link>
                 ) : (

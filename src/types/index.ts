@@ -1,26 +1,3 @@
-export interface TransactionRecord {
-  id: string
-  type: 'deposit' | 'bet' | 'win' | 'bonus'
-  amount: number
-  balanceAfter: number
-  date: number
-  label?: string
-}
-
-export interface WalletData {
-  balance: number
-  transactions: TransactionRecord[]
-  totalWagered: number
-  totalWon: number
-  gamesPlayed: number
-  createdAt: number
-}
-
-export interface AccountRecord {
-  passwordHash: string
-  createdAt: number
-}
-
 export type SlotVolatility = 'low' | 'medium' | 'high'
 
 export interface SlotSymbolDef {

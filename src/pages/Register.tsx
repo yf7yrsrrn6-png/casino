@@ -1,7 +1,8 @@
 import { useState, type FormEvent } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { useAuthStore } from '@/store/authStore'
+import { useSession } from '@/store/useSession'
+import { authErrorKey } from '@/lib/authErrors'
 import { Button } from '@/components/ui/Button'
 import { Logo } from '@/components/layout/Logo'
 
@@ -10,7 +11,7 @@ const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 export function Register() {
   const { t } = useTranslation()
   const navigate = useNavigate()
-  const register = useAuthStore((s) => s.register)
+  const register = useSession((s) => s.register)
 
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -24,15 +25,15 @@ export function Register() {
     setError(null)
 
     if (!EMAIL_RE.test(email)) {
-      setError('errorInvalidEmail')
+      setError('auth.errorInvalidEmail')
       return
     }
     if (password.length < 6) {
-      setError('errorShortPassword')
+      setError('auth.errorShortPassword')
       return
     }
     if (password !== confirmPassword) {
-      setError('errorPasswordMismatch')
+      setError('auth.errorPasswordMismatch')
       return
     }
 
@@ -41,7 +42,7 @@ export function Register() {
     setSubmitting(false)
 
     if (!result.ok) {
-      setError(result.error ?? 'errorInvalidCredentials')
+      setError(authErrorKey(result.error))
       return
     }
     navigate('/')
@@ -113,7 +114,7 @@ export function Register() {
 
           {error && (
             <div className="rounded-xl border border-ruby/40 bg-ruby/10 px-4 py-2.5 text-sm text-ruby">
-              {t(`auth.${error}`)}
+              {t(error)}
             </div>
           )}
 

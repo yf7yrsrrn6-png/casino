@@ -1,246 +1,185 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Link } from 'react-router-dom'
-import {
-  createShoe,
-  dealerShouldHit,
-  handValue,
-  isBlackjack,
-  isBust,
-  type PlayingCard,
-} from '@/lib/blackjackEngine'
-import { useCurrentWallet } from '@/store/useCurrentWallet'
-import { CardView } from '@/components/blackjack/CardView'
+import { api, ApiError, type FairInfo } from '@/lib/api'
+import { useSession } from '@/store/useSession'
+import { useWallet } from '@/store/useWallet'
+import { CardView, type DisplayCard } from '@/components/blackjack/CardView'
 import { Button } from '@/components/ui/Button'
 
 const CHIPS = [25, 50, 100, 250, 500]
 
-type Phase = 'betting' | 'player' | 'dealer' | 'result'
-type ResultKey = 'youWin' | 'youLose' | 'push' | 'blackjack' | 'bust' | 'dealerBust'
+interface BjView {
+  status: 'player' | 'done'
+  bet: number
+  doubled: boolean
+  player: DisplayCard[]
+  dealer: DisplayCard[]
+  dealerHidden: boolean
+  playerTotal: number
+  dealerTotal: number
+  result: { outcome: string; payout: number; playerTotal: number; dealerTotal: number } | null
+  canDouble: boolean
+  balance: number
+  fair: FairInfo
+}
+
+const OUTCOME_KEY: Record<string, string> = {
+  player_blackjack: 'blackjack.blackjack',
+  win: 'blackjack.youWin',
+  dealer_bust: 'blackjack.dealerBust',
+  lose: 'blackjack.youLose',
+  push: 'blackjack.push',
+  bust: 'blackjack.bust',
+}
+
+function errorMessage(t: (k: string) => string, code?: string): string {
+  switch (code) {
+    case 'unauthorized':
+      return 'loginToPlay'
+    case 'self_excluded':
+      return t('slots.selfExcluded')
+    case 'bet_over_limit':
+    case 'loss_limit_reached':
+      return t('slots.limitReached')
+    default:
+      return 'insufficientFunds'
+  }
+}
 
 export function Blackjack() {
   const { t } = useTranslation()
-  const { isAuthenticated, balance, placeBet, registerWin } = useCurrentWallet()
+  const isAuthenticated = useSession((s) => Boolean(s.user))
+  const balance = useWallet((s) => s.balance)
+  const setBalance = useWallet((s) => s.setBalance)
 
-  const [shoe, setShoe] = useState<PlayingCard[]>(() => createShoe())
-  const [playerCards, setPlayerCards] = useState<PlayingCard[]>([])
-  const [dealerCards, setDealerCards] = useState<PlayingCard[]>([])
+  const [view, setView] = useState<BjView | null>(null)
   const [bet, setBet] = useState(CHIPS[1])
-  const [activeBet, setActiveBet] = useState(0)
-  const [phase, setPhase] = useState<Phase>('betting')
-  const [result, setResult] = useState<{ key: ResultKey; amount: number } | null>(null)
+  const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [canDouble, setCanDouble] = useState(false)
 
-  function draw(deck: PlayingCard[]): [PlayingCard, PlayingCard[]] {
-    let working = deck
-    if (working.length < 15) working = createShoe()
-    const [card, ...rest] = working
-    return [card, rest]
-  }
+  // Resume an in-progress hand if the player navigates back.
+  useEffect(() => {
+    if (!isAuthenticated) return
+    void api
+      .get<BjView>('/games/blackjack/state')
+      .then((v) => {
+        if (v.status === 'player') setView(v)
+      })
+      .catch(() => {})
+  }, [isAuthenticated])
 
-  function settle(key: ResultKey, totalBet: number, multiplier: number) {
-    const amount = Math.round(totalBet * multiplier)
-    if (amount > 0) registerWin(amount, 'Blackjack')
-    setResult({ key, amount: amount - totalBet })
-    setPhase('result')
-  }
-
-  function resolveDealerTurn(playerHand: PlayingCard[], startingDealer: PlayingCard[], totalBet: number) {
-    let dealerHand = [...startingDealer]
-    let workingShoe = shoe
-
-    while (dealerShouldHit(dealerHand)) {
-      const [card, rest] = draw(workingShoe)
-      dealerHand = [...dealerHand, card]
-      workingShoe = rest
-    }
-
-    setDealerCards(dealerHand)
-    setShoe(workingShoe)
-
-    const playerTotal = handValue(playerHand).total
-    const dealerTotal = handValue(dealerHand).total
-
-    if (isBust(dealerHand)) {
-      settle('dealerBust', totalBet, 2)
-    } else if (dealerTotal > playerTotal) {
-      settle('youLose', totalBet, 0)
-    } else if (dealerTotal < playerTotal) {
-      settle('youWin', totalBet, 2)
-    } else {
-      settle('push', totalBet, 1)
+  async function act(fn: () => Promise<BjView>) {
+    setBusy(true)
+    setError(null)
+    try {
+      const v = await fn()
+      setView(v)
+      setBalance(v.balance)
+    } catch (err) {
+      setError(errorMessage(t, err instanceof ApiError ? err.code : undefined))
+    } finally {
+      setBusy(false)
     }
   }
 
   function handleDeal() {
-    setError(null)
-    setResult(null)
-
     if (!isAuthenticated) {
       setError('loginToPlay')
       return
     }
-    if (bet > balance || bet <= 0) {
+    if (bet > balance) {
       setError('insufficientFunds')
       return
     }
-    if (!placeBet(bet, 'Blackjack')) {
-      setError('insufficientFunds')
-      return
-    }
-
-    let workingShoe = shoe.length < 15 ? createShoe() : shoe
-    const p1 = workingShoe[0]
-    const d1 = workingShoe[1]
-    const p2 = workingShoe[2]
-    const d2 = workingShoe[3]
-    workingShoe = workingShoe.slice(4)
-
-    const player = [p1, p2]
-    const dealer = [d1, d2]
-
-    setPlayerCards(player)
-    setDealerCards(dealer)
-    setShoe(workingShoe)
-    setActiveBet(bet)
-    setCanDouble(bet * 2 <= balance)
-
-    if (isBlackjack(player)) {
-      if (isBlackjack(dealer)) {
-        setResult({ key: 'push', amount: 0 })
-        registerWin(bet, 'Blackjack')
-        setPhase('result')
-      } else {
-        registerWin(Math.round(bet * 2.5), 'Blackjack')
-        setResult({ key: 'blackjack', amount: Math.round(bet * 1.5) })
-        setPhase('result')
-      }
-      return
-    }
-
-    setPhase('player')
-  }
-
-  function handleHit() {
-    const [card, rest] = draw(shoe)
-    const next = [...playerCards, card]
-    setPlayerCards(next)
-    setShoe(rest)
-    setCanDouble(false)
-
-    if (isBust(next)) {
-      setResult({ key: 'bust', amount: -activeBet })
-      setPhase('result')
-    }
-  }
-
-  function handleStand() {
-    setPhase('dealer')
-    resolveDealerTurn(playerCards, dealerCards, activeBet)
-  }
-
-  function handleDouble() {
-    if (!placeBet(activeBet, 'Blackjack (double)')) return
-    const newTotalBet = activeBet * 2
-    setActiveBet(newTotalBet)
-
-    const [card, rest] = draw(shoe)
-    const next = [...playerCards, card]
-    setPlayerCards(next)
-    setShoe(rest)
-    setCanDouble(false)
-
-    if (isBust(next)) {
-      setResult({ key: 'bust', amount: -newTotalBet })
-      setPhase('result')
-    } else {
-      setPhase('dealer')
-      resolveDealerTurn(next, dealerCards, newTotalBet)
-    }
+    void act(() => api.post<BjView>('/games/blackjack/deal', { bet }))
   }
 
   function handleNewRound() {
-    setPlayerCards([])
-    setDealerCards([])
-    setResult(null)
+    setView(null)
     setError(null)
-    setActiveBet(0)
-    setPhase('betting')
   }
 
-  const playerTotal = playerCards.length ? handValue(playerCards).total : 0
-  const dealerTotal = dealerCards.length ? handValue(dealerCards).total : 0
-  const dealerHideSecond = phase === 'player'
+  const phase: 'betting' | 'player' | 'result' = !view
+    ? 'betting'
+    : view.status === 'player'
+      ? 'player'
+      : 'result'
+
+  const result = view?.result ?? null
+  const net = result ? result.payout - view!.bet : 0
 
   return (
     <div className="mx-auto max-w-5xl px-4 py-10 sm:px-6">
       <div className="mb-6">
-        <h1 className="font-display text-3xl font-bold text-white sm:text-4xl">
+        <h1 className="font-display text-3xl font-black tracking-tight text-white sm:text-4xl">
           {t('blackjack.title')}
         </h1>
-        <p className="mt-2 text-white/50">{t('blackjack.subtitle')}</p>
+        <p className="mt-2 text-lilac">{t('blackjack.subtitle')}</p>
       </div>
 
-      <div className="overflow-hidden rounded-3xl border border-border card-felt p-6 sm:p-10">
-        {/* Dealer area */}
+      <div className="overflow-hidden rounded-3xl border border-white/10 card-felt p-6 sm:p-10">
+        {/* Dealer */}
         <div className="mb-8">
           <div className="mb-3 flex items-center gap-2 text-sm font-bold text-white/70">
             {t('blackjack.dealer')}
-            {phase !== 'betting' && !dealerHideSecond && (
+            {view && !view.dealerHidden && (
               <span className="rounded-full bg-black/30 px-2.5 py-0.5 font-mono text-xs text-gold-soft">
-                {dealerTotal}
+                {view.dealerTotal}
               </span>
             )}
           </div>
           <div className="flex gap-2 sm:gap-3">
-            {dealerCards.length === 0 && (
+            {!view || view.dealer.length === 0 ? (
               <div className="flex h-24 w-16 items-center justify-center rounded-lg border-2 border-dashed border-white/10 sm:h-28 sm:w-20" />
+            ) : (
+              <>
+                {view.dealer.map((card, i) => (
+                  <CardView key={i} card={card} />
+                ))}
+                {view.dealerHidden && <CardView hidden />}
+              </>
             )}
-            {dealerCards.map((card, i) => (
-              <CardView key={card.id} card={card} hidden={dealerHideSecond && i === 1} />
-            ))}
           </div>
         </div>
 
-        {/* Result banner */}
+        {/* Result */}
         {result && phase === 'result' && (
           <div
             className={`mb-8 rounded-2xl border px-5 py-4 text-center font-display text-lg font-bold ${
-              result.amount > 0
+              net > 0
                 ? 'border-emerald/40 bg-emerald/10 text-emerald'
-                : result.amount < 0
+                : net < 0
                   ? 'border-ruby/40 bg-ruby/10 text-ruby'
-                  : 'border-border bg-white/5 text-white/70'
+                  : 'border-white/10 bg-white/5 text-white/70'
             }`}
           >
-            {t(`blackjack.${result.key}`)}
-            {result.amount !== 0 && (
+            {t(OUTCOME_KEY[result.outcome] ?? 'blackjack.push')}
+            {net !== 0 && (
               <span className="ml-2 font-mono">
-                {result.amount > 0 ? '+' : ''}
-                {result.amount} {t('common.currencyShort')}
+                {net > 0 ? '+' : ''}
+                {net} {t('common.currencyShort')}
               </span>
             )}
           </div>
         )}
 
-        {/* Player area */}
+        {/* Player */}
         <div>
           <div className="mb-3 flex items-center gap-2 text-sm font-bold text-white/70">
             {t('blackjack.you')}
-            {playerCards.length > 0 && (
+            {view && view.player.length > 0 && (
               <span className="rounded-full bg-black/30 px-2.5 py-0.5 font-mono text-xs text-gold-soft">
-                {playerTotal}
+                {view.playerTotal}
               </span>
             )}
           </div>
           <div className="flex gap-2 sm:gap-3">
-            {playerCards.length === 0 && (
+            {!view || view.player.length === 0 ? (
               <div className="flex h-24 w-16 items-center justify-center rounded-lg border-2 border-dashed border-white/10 sm:h-28 sm:w-20" />
+            ) : (
+              view.player.map((card, i) => <CardView key={i} card={card} />)
             )}
-            {playerCards.map((card) => (
-              <CardView key={card.id} card={card} />
-            ))}
           </div>
         </div>
 
@@ -255,13 +194,15 @@ export function Blackjack() {
                     {t('nav.login')}
                   </Link>
                 </>
-              ) : (
+              ) : error === 'insufficientFunds' ? (
                 <>
                   {t('blackjack.insufficientFunds')}{' '}
                   <Link to="/wallet" className="font-semibold underline">
                     {t('slots.goToWallet')}
                   </Link>
                 </>
+              ) : (
+                error
               )}
             </div>
           )}
@@ -287,11 +228,7 @@ export function Blackjack() {
                   </button>
                 ))}
               </div>
-              <Button
-                size="lg"
-                onClick={handleDeal}
-                disabled={bet <= 0 || (isAuthenticated && bet > balance)}
-              >
+              <Button size="lg" onClick={handleDeal} disabled={busy || bet <= 0}>
                 {t('blackjack.deal')} · {bet}
               </Button>
             </>
@@ -299,14 +236,26 @@ export function Blackjack() {
 
           {phase === 'player' && (
             <div className="flex flex-wrap justify-center gap-3">
-              <Button variant="secondary" onClick={handleHit}>
+              <Button
+                variant="secondary"
+                disabled={busy}
+                onClick={() => act(() => api.post<BjView>('/games/blackjack/hit'))}
+              >
                 {t('blackjack.hit')}
               </Button>
-              <Button variant="secondary" onClick={handleStand}>
+              <Button
+                variant="secondary"
+                disabled={busy}
+                onClick={() => act(() => api.post<BjView>('/games/blackjack/stand'))}
+              >
                 {t('blackjack.stand')}
               </Button>
-              {canDouble && (
-                <Button variant="secondary" onClick={handleDouble}>
+              {view?.canDouble && (
+                <Button
+                  variant="secondary"
+                  disabled={busy}
+                  onClick={() => act(() => api.post<BjView>('/games/blackjack/double'))}
+                >
                   {t('blackjack.double')}
                 </Button>
               )}
@@ -322,7 +271,7 @@ export function Blackjack() {
       </div>
 
       <div className="mt-8 grid gap-4 sm:grid-cols-2">
-        <div className="rounded-2xl border border-border bg-surface p-5 text-center">
+        <div className="rounded-2xl border border-white/10 bg-surface p-5 text-center">
           <div className="text-[11px] uppercase tracking-wide text-white/40">
             {t('blackjack.balance')}
           </div>
@@ -330,7 +279,7 @@ export function Blackjack() {
             {balance.toLocaleString('en-US')}
           </div>
         </div>
-        <div className="rounded-2xl border border-border bg-surface p-5">
+        <div className="rounded-2xl border border-white/10 bg-surface p-5">
           <h3 className="mb-1 text-sm font-bold text-white/80">{t('blackjack.rules')}</h3>
           <p className="text-xs leading-relaxed text-white/45">{t('blackjack.rulesText')}</p>
         </div>

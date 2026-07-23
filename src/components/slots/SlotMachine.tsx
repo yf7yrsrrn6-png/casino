@@ -1,21 +1,32 @@
 import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Link } from 'react-router-dom'
-import type { SlotDefinition, SlotSymbolDef } from '@/types'
-import { evaluateSpin, spinGrid, PAYLINES, ROWS, REELS } from '@/lib/slotEngine'
-import { useCurrentWallet } from '@/store/useCurrentWallet'
+import type { SlotDefinition } from '@/types'
+import { api, ApiError, type FairInfo } from '@/lib/api'
+import { useSession } from '@/store/useSession'
+import { useWallet } from '@/store/useWallet'
 import { Button } from '@/components/ui/Button'
 import { ACCENT_TEXT } from '@/lib/slotTheme'
 
 const BET_PRESETS = [10, 25, 50, 100, 250, 500]
 const REEL_STOP_DELAYS = [550, 950, 1350]
 const FLICKER_INTERVAL = 70
+const REELS = 3
+const ROWS = 3
+const PAYLINE_COUNT = 5
 
-function randomFrom(symbols: SlotSymbolDef[]): SlotSymbolDef {
-  return symbols[Math.floor(Math.random() * symbols.length)]
+type WinTier = 'none' | 'win' | 'big' | 'jackpot'
+
+interface SpinResponse {
+  result: {
+    grid: string[][]
+    winningLines: { line: number; glyph: string; payout: number }[]
+    totalWin: number
+    tier: WinTier
+  }
+  balance: number
+  fair: FairInfo
 }
-
-type WinTier = null | 'win' | 'big' | 'jackpot'
 
 interface RecentSpin {
   id: string
@@ -23,13 +34,31 @@ interface RecentSpin {
   tier: WinTier
 }
 
+function errorKey(code?: string): string {
+  switch (code) {
+    case 'unauthorized':
+      return 'loginToPlay'
+    case 'bet_over_limit':
+    case 'loss_limit_reached':
+      return 'limitReached'
+    case 'self_excluded':
+      return 'selfExcluded'
+    default:
+      return 'insufficientFunds'
+  }
+}
+
 export function SlotMachine({ slot }: { slot: SlotDefinition }) {
   const { t } = useTranslation()
-  const { isAuthenticated, balance, placeBet, registerWin } = useCurrentWallet()
+  const isAuthenticated = useSession((s) => Boolean(s.user))
+  const balance = useWallet((s) => s.balance)
+  const setBalance = useWallet((s) => s.setBalance)
+
+  const glyphs = slot.symbols.map((s) => s.glyph)
 
   const [bet, setBet] = useState(BET_PRESETS[1])
-  const [grid, setGrid] = useState<SlotSymbolDef[][]>(() =>
-    Array.from({ length: REELS }, () => Array.from({ length: ROWS }, () => slot.symbols[0])),
+  const [grid, setGrid] = useState<string[][]>(() =>
+    Array.from({ length: REELS }, () => Array.from({ length: ROWS }, () => glyphs[0])),
   )
   const [reelStopped, setReelStopped] = useState([true, true, true])
   const [spinning, setSpinning] = useState(false)
@@ -59,50 +88,32 @@ export function SlotMachine({ slot }: { slot: SlotDefinition }) {
     intervals.current = []
   }
 
-  function handleSpin() {
-    setError(null)
-    setMessage(null)
-    setWinningLineIndexes([])
+  function randGlyph() {
+    return glyphs[Math.floor(Math.random() * glyphs.length)]
+  }
 
-    if (!isAuthenticated) {
-      setError('loginToPlay')
-      return
-    }
-    if (bet > balance || bet <= 0) {
-      setError('insufficientFunds')
-      return
-    }
-
-    const ok = placeBet(bet, slot.name)
-    if (!ok) {
-      setError('insufficientFunds')
-      return
-    }
-
-    setSessionBet((v) => v + bet)
+  function startFlicker() {
     setSpinning(true)
     setReelStopped([false, false, false])
-
-    const finalResult = evaluateSpin(spinGrid(slot.symbols), bet)
-
-    clearTimers()
-
-    // Flicker each reel independently while it "spins".
     for (let reel = 0; reel < REELS; reel++) {
       const flicker = window.setInterval(() => {
         setGrid((prev) => {
           const next = prev.map((col) => [...col])
-          next[reel] = Array.from({ length: ROWS }, () => randomFrom(slot.symbols))
+          next[reel] = Array.from({ length: ROWS }, randGlyph)
           return next
         })
       }, FLICKER_INTERVAL)
       intervals.current.push(flicker)
+    }
+  }
 
-      const stopTimeout = window.setTimeout(() => {
-        clearInterval(flicker)
+  /** Sequentially stop the reels onto the server's grid, then resolve. */
+  function settleTo(res: SpinResponse) {
+    for (let reel = 0; reel < REELS; reel++) {
+      const stop = window.setTimeout(() => {
         setGrid((prev) => {
           const next = prev.map((col) => [...col])
-          next[reel] = finalResult.grid[reel]
+          next[reel] = res.result.grid[reel]
           return next
         })
         setReelStopped((prev) => {
@@ -111,37 +122,56 @@ export function SlotMachine({ slot }: { slot: SlotDefinition }) {
           return next
         })
       }, REEL_STOP_DELAYS[reel])
-      timeouts.current.push(stopTimeout)
+      timeouts.current.push(stop)
     }
 
-    const finishTimeout = window.setTimeout(() => {
+    const finish = window.setTimeout(() => {
       setSpinning(false)
-      setWinningLineIndexes(finalResult.winningLines.map((w) => w.lineIndex))
-
-      if (finalResult.totalWin > 0) {
-        registerWin(finalResult.totalWin, slot.name)
-        setSessionWin((v) => v + finalResult.totalWin)
-        const rarest = finalResult.winningLines.some((w) => w.symbol.weight <= 3)
-        const tier: WinTier =
-          finalResult.totalWin >= bet * 40 || rarest
-            ? 'jackpot'
-            : finalResult.totalWin >= bet * 10
-              ? 'big'
-              : 'win'
-        setMessage({ tier, amount: finalResult.totalWin })
-        setRecentSpins((prev) => [
-          { id: crypto.randomUUID(), amount: finalResult.totalWin, tier },
-          ...prev,
-        ].slice(0, 6))
+      setBalance(res.balance)
+      setWinningLineIndexes(res.result.winningLines.map((w) => w.line))
+      const { totalWin, tier } = res.result
+      if (totalWin > 0) {
+        setSessionWin((v) => v + totalWin)
+        setMessage({ tier, amount: totalWin })
       } else {
-        setMessage({ tier: null, amount: 0 })
-        setRecentSpins((prev) => [
-          { id: crypto.randomUUID(), amount: 0, tier: null },
-          ...prev,
-        ].slice(0, 6))
+        setMessage({ tier: 'none', amount: 0 })
       }
+      setRecentSpins((prev) =>
+        [{ id: crypto.randomUUID(), amount: totalWin, tier }, ...prev].slice(0, 6),
+      )
     }, REEL_STOP_DELAYS[REELS - 1] + 150)
-    timeouts.current.push(finishTimeout)
+    timeouts.current.push(finish)
+  }
+
+  async function handleSpin() {
+    if (spinning) return
+    setError(null)
+    setMessage(null)
+    setWinningLineIndexes([])
+
+    if (!isAuthenticated) {
+      setError('loginToPlay')
+      return
+    }
+    if (bet <= 0 || bet > balance) {
+      setError('insufficientFunds')
+      return
+    }
+
+    clearTimers()
+    startFlicker()
+    setSessionBet((v) => v + bet)
+
+    try {
+      const res = await api.post<SpinResponse>('/games/slots/spin', { gameId: slot.id, bet })
+      settleTo(res)
+    } catch (err) {
+      clearTimers()
+      setSpinning(false)
+      setReelStopped([true, true, true])
+      setSessionBet((v) => Math.max(0, v - bet))
+      setError(errorKey(err instanceof ApiError ? err.code : undefined))
+    }
   }
 
   const canSpin = !spinning && bet > 0 && (!isAuthenticated || bet <= balance)
@@ -149,7 +179,7 @@ export function SlotMachine({ slot }: { slot: SlotDefinition }) {
   return (
     <div className="grid gap-6 lg:grid-cols-[1fr_320px]">
       <div
-        className="relative overflow-hidden rounded-3xl border border-border p-6 sm:p-8"
+        className="relative overflow-hidden rounded-3xl border border-white/10 p-6 sm:p-8"
         style={{ background: `linear-gradient(160deg, ${slot.themeFrom}, ${slot.themeTo})` }}
       >
         <div className="mb-5 flex items-center justify-between">
@@ -158,7 +188,7 @@ export function SlotMachine({ slot }: { slot: SlotDefinition }) {
             <div>
               <h2 className="font-display text-lg font-bold text-white sm:text-xl">{slot.name}</h2>
               <p className="text-xs text-white/50">
-                {t('slots.rtp')} {slot.rtp}% · {t('slots.paylines')}: {PAYLINES.length}
+                {t('slots.rtp')} {slot.rtp}% · {t('slots.paylines')}: {PAYLINE_COUNT}
               </p>
             </div>
           </div>
@@ -169,7 +199,6 @@ export function SlotMachine({ slot }: { slot: SlotDefinition }) {
           </span>
         </div>
 
-        {/* Reel grid */}
         <div className="relative rounded-2xl border-4 border-gold/40 bg-black/40 p-3 shadow-glow-gold sm:p-4">
           <div className="grid grid-cols-3 gap-2 sm:gap-3">
             {Array.from({ length: REELS }).map((_, reel) => (
@@ -180,7 +209,7 @@ export function SlotMachine({ slot }: { slot: SlotDefinition }) {
                 }`}
               >
                 {Array.from({ length: ROWS }).map((_, row) => {
-                  const glyph = grid[reel][row].glyph
+                  const glyph = grid[reel][row]
                   const isNumeric = /^[0-9]+$/.test(glyph)
                   return (
                     <div
@@ -198,7 +227,6 @@ export function SlotMachine({ slot }: { slot: SlotDefinition }) {
           </div>
         </div>
 
-        {/* Message / status */}
         <div className="mt-4 flex min-h-[2.5rem] items-center justify-center">
           {error && (
             <div className="rounded-xl border border-ruby/40 bg-ruby/10 px-4 py-2 text-center text-sm text-ruby">
@@ -209,6 +237,10 @@ export function SlotMachine({ slot }: { slot: SlotDefinition }) {
                     {t('nav.login')}
                   </Link>
                 </>
+              ) : error === 'limitReached' ? (
+                t('slots.limitReached')
+              ) : error === 'selfExcluded' ? (
+                t('slots.selfExcluded')
               ) : (
                 <>
                   {t('slots.insufficientFunds')}{' '}
@@ -233,18 +265,17 @@ export function SlotMachine({ slot }: { slot: SlotDefinition }) {
             >
               {message.tier === 'jackpot' && `${t('slots.jackpot')} `}
               {message.tier === 'big' && `${t('slots.bigWin')} `}
-              {message.tier
+              {message.tier !== 'none'
                 ? `+${message.amount.toLocaleString('en-US')} ${t('common.currencyShort')}`
                 : t('slots.noWin')}
             </div>
           )}
         </div>
 
-        {/* Controls */}
         <div className="mt-5 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-center gap-2">
             <span className="text-xs font-semibold text-white/50">{t('slots.bet')}</span>
-            <div className="flex items-center rounded-xl border border-border bg-black/30">
+            <div className="flex items-center rounded-xl border border-white/12 bg-black/30">
               <button
                 onClick={() => setBet((v) => Math.max(BET_PRESETS[0], v - 10))}
                 disabled={spinning}
@@ -266,7 +297,7 @@ export function SlotMachine({ slot }: { slot: SlotDefinition }) {
             <button
               onClick={() => setBet(maxBet)}
               disabled={spinning}
-              className="rounded-lg border border-border px-2.5 py-1.5 text-xs font-semibold text-white/60 hover:text-white disabled:opacity-30 cursor-pointer"
+              className="rounded-lg border border-white/12 px-2.5 py-1.5 text-xs font-semibold text-white/60 hover:text-white disabled:opacity-30 cursor-pointer"
             >
               {t('slots.maxBet')}
             </button>
@@ -286,7 +317,7 @@ export function SlotMachine({ slot }: { slot: SlotDefinition }) {
               className={`rounded-full border px-3 py-1 text-xs font-semibold transition-colors disabled:opacity-30 cursor-pointer ${
                 bet === preset
                   ? 'border-gold bg-gold/15 text-gold-soft'
-                  : 'border-border text-white/50 hover:text-white'
+                  : 'border-white/12 text-white/50 hover:text-white'
               }`}
             >
               {preset}
@@ -297,7 +328,7 @@ export function SlotMachine({ slot }: { slot: SlotDefinition }) {
 
       {/* Side panel */}
       <div className="flex flex-col gap-4">
-        <div className="rounded-2xl border border-border bg-surface p-5">
+        <div className="rounded-2xl border border-white/10 bg-surface p-5">
           <div className="mb-4 grid grid-cols-2 gap-3 text-center">
             <div>
               <div className="text-[11px] uppercase tracking-wide text-white/40">
@@ -322,7 +353,7 @@ export function SlotMachine({ slot }: { slot: SlotDefinition }) {
           </div>
         </div>
 
-        <div className="rounded-2xl border border-border bg-surface p-5">
+        <div className="rounded-2xl border border-white/10 bg-surface p-5">
           <h3 className="mb-3 text-sm font-bold text-white/80">{t('slots.lastWins')}</h3>
           {recentSpins.length === 0 ? (
             <p className="text-sm text-white/35">—</p>

@@ -1,9 +1,12 @@
-import type { PlayingCard } from '@/lib/blackjackEngine'
+export interface DisplayCard {
+  rank: string
+  suit: string
+}
 
 const RED_SUITS = new Set(['♥', '♦'])
 
-export function CardView({ card, hidden }: { card: PlayingCard; hidden?: boolean }) {
-  if (hidden) {
+export function CardView({ card, hidden }: { card?: DisplayCard; hidden?: boolean }) {
+  if (hidden || !card) {
     return (
       <div className="flex h-24 w-16 items-center justify-center rounded-lg border-2 border-gold/30 bg-gradient-to-br from-violet/40 to-surface-2 shadow-md sm:h-28 sm:w-20">
         <span className="text-lg font-display font-bold text-gold-soft/50">7</span>

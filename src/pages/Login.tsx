@@ -1,7 +1,8 @@
 import { useState, type FormEvent } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { useAuthStore } from '@/store/authStore'
+import { useSession } from '@/store/useSession'
+import { authErrorKey } from '@/lib/authErrors'
 import { Button } from '@/components/ui/Button'
 import { Logo } from '@/components/layout/Logo'
 
@@ -9,7 +10,7 @@ export function Login() {
   const { t } = useTranslation()
   const navigate = useNavigate()
   const location = useLocation()
-  const login = useAuthStore((s) => s.login)
+  const login = useSession((s) => s.login)
 
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -24,7 +25,7 @@ export function Login() {
     setError(null)
 
     if (!email || !password) {
-      setError('errorRequired')
+      setError('auth.errorRequired')
       return
     }
 
@@ -33,7 +34,7 @@ export function Login() {
     setSubmitting(false)
 
     if (!result.ok) {
-      setError(result.error ?? 'errorInvalidCredentials')
+      setError(authErrorKey(result.error))
       return
     }
     navigate(redirectTo)
@@ -89,7 +90,7 @@ export function Login() {
 
           {error && (
             <div className="rounded-xl border border-ruby/40 bg-ruby/10 px-4 py-2.5 text-sm text-ruby">
-              {t(`auth.${error}`)}
+              {t(error)}
             </div>
           )}
 
