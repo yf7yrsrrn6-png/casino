@@ -10,7 +10,11 @@ interface SessionState {
     password: string,
     displayName?: string,
   ) => Promise<{ ok: boolean; error?: string }>
-  login: (email: string, password: string) => Promise<{ ok: boolean; error?: string }>
+  login: (
+    email: string,
+    password: string,
+    totp?: string,
+  ) => Promise<{ ok: boolean; error?: string; twoFactorRequired?: boolean }>
   logout: () => Promise<void>
   setUser: (user: ApiUser | null) => void
 }
@@ -42,10 +46,17 @@ export const useSession = create<SessionState>((set) => ({
     }
   },
 
-  login: async (email, password) => {
+  login: async (email, password, totp) => {
     try {
-      const { user } = await api.post<{ user: ApiUser }>('/auth/login', { email, password })
-      set({ user })
+      const resp = await api.post<{ user?: ApiUser; twoFactorRequired?: boolean }>('/auth/login', {
+        email,
+        password,
+        totp,
+      })
+      if (resp.twoFactorRequired && !resp.user) {
+        return { ok: false, twoFactorRequired: true }
+      }
+      set({ user: resp.user })
       return { ok: true }
     } catch (err) {
       return { ok: false, error: err instanceof ApiError ? err.code : 'request_failed' }

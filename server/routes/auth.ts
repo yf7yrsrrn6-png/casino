@@ -4,6 +4,7 @@ import { config } from '../config.ts'
 import { handler, unauthorized, forbidden } from '../lib/http.ts'
 import { parse, emailSchema, passwordSchema } from '../lib/validate.ts'
 import { verifyPassword } from '../lib/password.ts'
+import { verifyTotp } from '../lib/totp.ts'
 import { signSession } from '../lib/token.ts'
 import { rateLimit } from '../middleware/rateLimit.ts'
 import { requireAuth } from '../middleware/auth.ts'
@@ -34,6 +35,7 @@ const credentialsSchema = z.object({
   email: emailSchema,
   password: passwordSchema,
   displayName: z.string().trim().min(1).max(40).optional(),
+  totp: z.string().trim().max(10).optional(),
 })
 
 authRouter.post(
@@ -52,12 +54,22 @@ authRouter.post(
   '/login',
   authLimiter,
   handler(async (req, res) => {
-    const { email, password } = parse(credentialsSchema.omit({ displayName: true }), req.body)
+    const { email, password, totp } = parse(credentialsSchema.omit({ displayName: true }), req.body)
     const user = findByEmail(email)
     if (!user || !verifyPassword(password, user.password_hash, user.password_salt)) {
       throw unauthorized('invalid_credentials')
     }
     if (user.status === 'banned') throw forbidden('account_banned')
+
+    // Second factor, if the account has it enabled.
+    if (user.totp_enabled === 1 && user.totp_secret) {
+      if (!totp) {
+        res.json({ twoFactorRequired: true })
+        return
+      }
+      if (!verifyTotp(user.totp_secret, totp)) throw unauthorized('invalid_totp')
+    }
+
     touchLogin(user.id)
     const fresh = findById(user.id)!
     setSessionCookie(res, fresh.id, fresh.role)

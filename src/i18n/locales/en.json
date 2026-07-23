@@ -33,7 +33,10 @@
     "baccarat": "Baccarat",
     "crash": "Crash",
     "fairness": "Fairness",
-    "games": "Games"
+    "games": "Games",
+    "dice": "Dice",
+    "plinko": "Plinko",
+    "keno": "Keno"
   },
   "footer": {
     "about": "TakeMyLucky is a demo entertainment playground. All games use virtual credits with zero real-world value — nothing here can be won, deposited, cashed out or wagered for real money.",
@@ -188,7 +191,11 @@
     "errorBanned": "This account has been suspended.",
     "errorRateLimited": "Too many attempts. Please wait a minute and try again.",
     "errorValidation": "Please check the details and try again.",
-    "errorGeneric": "Something went wrong. Please try again."
+    "errorGeneric": "Something went wrong. Please try again.",
+    "totpCode": "Authenticator code",
+    "totpHint": "Enter the 6-digit code from your authenticator app",
+    "errorTotpRequired": "Enter your authenticator code.",
+    "errorInvalidTotp": "Invalid authenticator code."
   },
   "slots": {
     "title": "Slot Machines",
@@ -323,7 +330,18 @@
     "nonce": "Nonce",
     "rotateSeed": "Rotate & reveal seed",
     "seedRevealed": "Revealed server seed",
-    "deletePasswordPlaceholder": "Enter password to confirm"
+    "deletePasswordPlaceholder": "Enter password to confirm",
+    "twoFactorTitle": "Two-factor authentication",
+    "twoFactorText": "Add a TOTP code from an authenticator app (Google Authenticator, Authy…) to your login.",
+    "twoFactorEnabled": "2FA is enabled",
+    "twoFactorEnable": "Enable 2FA",
+    "twoFactorDisable": "Disable 2FA",
+    "twoFactorScan": "Add this secret to your authenticator app, then enter a code to confirm.",
+    "twoFactorSecret": "Secret key",
+    "twoFactorConfirmCode": "6-digit code",
+    "twoFactorConfirm": "Confirm & enable",
+    "twoFactorPassword": "Password to disable",
+    "twoFactorEnabledOk": "Two-factor authentication enabled"
   },
   "notFound": {
     "title": "404",
@@ -385,7 +403,12 @@
     "active": "Active",
     "bannedStatus": "Banned",
     "noUsers": "No players found.",
-    "you": "you"
+    "you": "you",
+    "roundsPerDay": "Rounds / day",
+    "wageredPerDay": "Wagered / day",
+    "signupsPerDay": "Signups / day",
+    "byGame": "By game (all time)",
+    "edge": "edge"
   },
   "header": {
     "online": "online",
@@ -523,5 +546,58 @@
     "crashPoint": "Crash point",
     "pocket": "Roulette pocket",
     "firstSymbols": "First reel symbols"
+  },
+  "dice": {
+    "title": "Dice",
+    "subtitle": "Pick a target and roll under or over",
+    "bet": "Bet",
+    "balance": "Balance",
+    "rollUnder": "Roll under",
+    "rollOver": "Roll over",
+    "target": "Target",
+    "chance": "Win chance",
+    "multiplier": "Payout",
+    "roll": "Roll",
+    "rolling": "Rolling…",
+    "youWon": "You won",
+    "youLost": "No win",
+    "loginToPlay": "Log in to play with your demo balance.",
+    "insufficientFunds": "Not enough balance.",
+    "history": "Recent rolls"
+  },
+  "plinko": {
+    "title": "Plinko",
+    "subtitle": "Drop the ball and land a multiplier",
+    "bet": "Bet",
+    "balance": "Balance",
+    "risk": "Risk",
+    "low": "Low",
+    "medium": "Medium",
+    "high": "High",
+    "drop": "Drop ball",
+    "dropping": "Dropping…",
+    "landed": "Landed on",
+    "loginToPlay": "Log in to play with your demo balance.",
+    "insufficientFunds": "Not enough balance.",
+    "history": "Recent drops"
+  },
+  "keno": {
+    "title": "Keno",
+    "subtitle": "Pick up to 10 numbers, we draw 10",
+    "bet": "Bet",
+    "balance": "Balance",
+    "play": "Play",
+    "playing": "Drawing…",
+    "clear": "Clear",
+    "quickPick": "Quick pick",
+    "picks": "Your picks",
+    "hits": "Hits",
+    "youWon": "You won",
+    "youLost": "No win",
+    "loginToPlay": "Log in to play with your demo balance.",
+    "insufficientFunds": "Not enough balance.",
+    "pickSome": "Pick 1–10 numbers",
+    "maxPicks": "Up to 10 numbers",
+    "payoutTable": "Payouts"
   }
 }

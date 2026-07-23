@@ -14,6 +14,8 @@ export function Login() {
 
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [totp, setTotp] = useState('')
+  const [twoFactorStep, setTwoFactorStep] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
@@ -28,13 +30,21 @@ export function Login() {
       setError('auth.errorRequired')
       return
     }
+    if (twoFactorStep && !totp) {
+      setError('auth.errorTotpRequired')
+      return
+    }
 
     setSubmitting(true)
-    const result = await login(email, password)
+    const result = await login(email, password, twoFactorStep ? totp : undefined)
     setSubmitting(false)
 
+    if (result.twoFactorRequired) {
+      setTwoFactorStep(true)
+      return
+    }
     if (!result.ok) {
-      setError(authErrorKey(result.error))
+      setError(result.error === 'invalid_totp' ? 'auth.errorInvalidTotp' : authErrorKey(result.error))
       return
     }
     navigate(redirectTo)
@@ -87,6 +97,22 @@ export function Login() {
               </button>
             </div>
           </label>
+
+          {twoFactorStep && (
+            <label className="flex flex-col gap-1.5">
+              <span className="text-xs font-semibold text-white/60">{t('auth.totpCode')}</span>
+              <input
+                inputMode="numeric"
+                autoComplete="one-time-code"
+                autoFocus
+                value={totp}
+                onChange={(e) => setTotp(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                placeholder="123456"
+                className="rounded-xl border border-gold/40 bg-surface-2 px-4 py-2.5 text-center font-mono text-lg tracking-[0.3em] text-white outline-none focus:border-gold/70"
+              />
+              <span className="text-xs text-white/40">{t('auth.totpHint')}</span>
+            </label>
+          )}
 
           {error && (
             <div className="rounded-xl border border-ruby/40 bg-ruby/10 px-4 py-2.5 text-sm text-ruby">

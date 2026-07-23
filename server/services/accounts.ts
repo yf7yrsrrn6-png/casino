@@ -22,6 +22,8 @@ export interface FullUserRow {
   referral_code: string | null
   referred_by: string | null
   daily_claimed_at: number | null
+  totp_secret: string | null
+  totp_enabled: number
 }
 
 function makeReferralCode(): string {
@@ -98,5 +100,14 @@ export function publicUser(row: FullUserRow) {
     xp: row.xp,
     vipLevel: row.vip_level,
     referralCode: row.referral_code,
+    twoFactorEnabled: row.totp_enabled === 1,
   }
+}
+
+export function setTotpSecret(id: string, secret: string | null): void {
+  db.prepare('UPDATE users SET totp_secret = ? WHERE id = ?').run(secret, id)
+}
+
+export function setTotpEnabled(id: string, enabled: boolean): void {
+  db.prepare('UPDATE users SET totp_enabled = ? WHERE id = ?').run(enabled ? 1 : 0, id)
 }

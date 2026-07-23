@@ -49,6 +49,44 @@ export function Settings() {
   const [deletePassword, setDeletePassword] = useState('')
   const [confirmingDelete, setConfirmingDelete] = useState(false)
 
+  const [totpSetup, setTotpSetup] = useState<{ secret: string; otpauth: string } | null>(null)
+  const [totpCode, setTotpCode] = useState('')
+  const [totpMsg, setTotpMsg] = useState<{ ok: boolean; text: string } | null>(null)
+  const [disablePassword, setDisablePassword] = useState('')
+
+  async function startTotpSetup() {
+    setTotpMsg(null)
+    const res = await api.post<{ secret: string; otpauth: string }>('/account/2fa/setup')
+    setTotpSetup(res)
+  }
+
+  async function confirmTotp() {
+    try {
+      const { user: updated } = await api.post<{ user: typeof user }>('/account/2fa/enable', {
+        code: totpCode,
+      })
+      if (updated) setUser(updated)
+      setTotpSetup(null)
+      setTotpCode('')
+      setTotpMsg({ ok: true, text: t('settings.twoFactorEnabledOk') })
+    } catch {
+      setTotpMsg({ ok: false, text: t('auth.errorInvalidTotp') })
+    }
+  }
+
+  async function disableTotp() {
+    try {
+      const { user: updated } = await api.post<{ user: typeof user }>('/account/2fa/disable', {
+        password: disablePassword,
+      })
+      if (updated) setUser(updated)
+      setDisablePassword('')
+      setTotpMsg(null)
+    } catch {
+      setTotpMsg({ ok: false, text: t('auth.errorInvalidCredentials') })
+    }
+  }
+
   useEffect(() => {
     void api
       .get<{ limits: LimitsRow | null }>('/account/profile')
@@ -292,6 +330,66 @@ export function Settings() {
           <Button variant="secondary" className="mt-4" onClick={handleRotateSeed}>
             {t('settings.rotateSeed')}
           </Button>
+        </section>
+
+        {/* Two-factor authentication */}
+        <section className="rounded-2xl border border-white/10 bg-surface p-6">
+          <div className="flex items-center gap-2">
+            <h2 className="font-display text-lg font-bold text-white">{t('settings.twoFactorTitle')}</h2>
+            {user?.twoFactorEnabled && (
+              <span className="rounded-lg bg-emerald/15 px-2 py-0.5 text-xs font-bold text-emerald">
+                {t('settings.twoFactorEnabled')}
+              </span>
+            )}
+          </div>
+          <p className="mt-1 text-sm text-mist">{t('settings.twoFactorText')}</p>
+
+          {user?.twoFactorEnabled ? (
+            <div className="mt-4 flex flex-wrap items-center gap-3">
+              <input
+                type="password"
+                value={disablePassword}
+                onChange={(e) => setDisablePassword(e.target.value)}
+                placeholder={t('settings.twoFactorPassword')}
+                className={`${inputCls} flex-1 min-w-[200px]`}
+              />
+              <Button variant="danger" onClick={disableTotp} disabled={!disablePassword}>
+                {t('settings.twoFactorDisable')}
+              </Button>
+            </div>
+          ) : totpSetup ? (
+            <div className="mt-4 flex flex-col gap-3">
+              <p className="text-sm text-lilac">{t('settings.twoFactorScan')}</p>
+              <div>
+                <span className="text-xs font-semibold text-white/60">{t('settings.twoFactorSecret')}</span>
+                <code className="mt-1 block break-all rounded-xl border border-white/12 bg-surface-2 px-4 py-3 font-mono text-sm tracking-wider text-gold-soft">
+                  {totpSetup.secret}
+                </code>
+              </div>
+              <div className="flex flex-wrap items-end gap-3">
+                <label className="flex flex-col gap-1.5">
+                  <span className="text-xs font-semibold text-white/60">{t('settings.twoFactorConfirmCode')}</span>
+                  <input
+                    inputMode="numeric"
+                    value={totpCode}
+                    onChange={(e) => setTotpCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                    placeholder="123456"
+                    className={`${inputCls} w-36 text-center font-mono tracking-[0.3em]`}
+                  />
+                </label>
+                <Button onClick={confirmTotp} disabled={totpCode.length !== 6}>
+                  {t('settings.twoFactorConfirm')}
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <Button variant="secondary" className="mt-4" onClick={startTotpSetup}>
+              {t('settings.twoFactorEnable')}
+            </Button>
+          )}
+          {totpMsg && (
+            <div className={`mt-3 text-sm ${totpMsg.ok ? 'text-emerald' : 'text-ruby'}`}>{totpMsg.text}</div>
+          )}
         </section>
 
         {/* Security */}

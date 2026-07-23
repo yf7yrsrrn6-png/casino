@@ -13,7 +13,10 @@ import {
   deleteUser,
   setSelfExclusion,
   publicUser,
+  setTotpSecret,
+  setTotpEnabled,
 } from '../services/accounts.ts'
+import { generateSecret, otpauthUri, verifyTotp } from '../lib/totp.ts'
 import { getWallet, getLimits } from '../services/wallet.ts'
 import { favoriteGame, listRounds } from '../services/rounds.ts'
 import { publicSeedInfo, rotateSeed } from '../services/fairness.ts'
@@ -124,6 +127,50 @@ accountRouter.post(
     deleteUser(user.id) // cascades to wallet/transactions/rounds/etc.
     res.clearCookie(config.cookieName, { path: '/' })
     res.json({ ok: true })
+  }),
+)
+
+// --- Two-factor authentication (TOTP) ---
+
+// Step 1: generate a secret and return the otpauth URI (not yet enabled).
+accountRouter.post(
+  '/2fa/setup',
+  handler(async (req, res) => {
+    const user = findById(req.user!.id)!
+    if (user.totp_enabled === 1) throw unauthorized('already_enabled')
+    const secret = generateSecret()
+    setTotpSecret(user.id, secret)
+    res.json({ secret, otpauth: otpauthUri(user.email, secret) })
+  }),
+)
+
+const totpSchema = z.object({ code: z.string().trim().min(6).max(10) })
+
+// Step 2: confirm a code from the authenticator app to enable 2FA.
+accountRouter.post(
+  '/2fa/enable',
+  handler(async (req, res) => {
+    const { code } = parse(totpSchema, req.body)
+    const user = findById(req.user!.id)!
+    if (!user.totp_secret) throw unauthorized('no_secret')
+    if (!verifyTotp(user.totp_secret, code)) throw unauthorized('invalid_totp')
+    setTotpEnabled(user.id, true)
+    res.json({ ok: true, user: publicUser(findById(user.id)!) })
+  }),
+)
+
+const disableSchema = z.object({ password: z.string() })
+accountRouter.post(
+  '/2fa/disable',
+  handler(async (req, res) => {
+    const { password } = parse(disableSchema, req.body)
+    const user = findById(req.user!.id)!
+    if (!verifyPassword(password, user.password_hash, user.password_salt)) {
+      throw unauthorized('invalid_credentials')
+    }
+    setTotpEnabled(user.id, false)
+    setTotpSecret(user.id, null)
+    res.json({ ok: true, user: publicUser(findById(user.id)!) })
   }),
 )
 

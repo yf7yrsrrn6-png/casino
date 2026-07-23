@@ -130,3 +130,40 @@ adminRouter.get(
     res.json({ audit: rows })
   }),
 )
+
+// Time-series analytics for the last 14 days plus per-game breakdown.
+adminRouter.get(
+  '/analytics',
+  handler(async (_req, res) => {
+    const days = 14
+    const since = Date.now() - days * 24 * 60 * 60 * 1000
+    const dayExpr = "strftime('%Y-%m-%d', r.created_at / 1000, 'unixepoch')"
+
+    const rounds = db
+      .prepare(
+        `SELECT ${dayExpr} AS day, COUNT(*) AS rounds,
+                COALESCE(SUM(r.bet),0) AS wagered, COALESCE(SUM(r.payout),0) AS payout
+         FROM game_rounds r WHERE r.created_at >= ? GROUP BY day ORDER BY day`,
+      )
+      .all(since)
+
+    const signups = db
+      .prepare(
+        `SELECT strftime('%Y-%m-%d', created_at / 1000, 'unixepoch') AS day, COUNT(*) AS signups
+         FROM users WHERE created_at >= ? GROUP BY day ORDER BY day`,
+      )
+      .all(since)
+
+    const byGame = db
+      .prepare(
+        `SELECT r.game AS game, COUNT(*) AS rounds,
+                COALESCE(SUM(r.bet),0) AS wagered, COALESCE(SUM(r.payout),0) AS payout
+         FROM game_rounds r GROUP BY r.game ORDER BY wagered DESC`,
+      )
+      .all()
+
+    const jackpot = db.prepare('SELECT amount, won_count FROM jackpot WHERE id = 1').get()
+
+    res.json({ days, rounds, signups, byGame, jackpot })
+  }),
+)

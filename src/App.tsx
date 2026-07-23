@@ -14,6 +14,9 @@ import { Blackjack } from '@/pages/Blackjack'
 import { Roulette } from '@/pages/Roulette'
 import { Baccarat } from '@/pages/Baccarat'
 import { Crash } from '@/pages/Crash'
+import { Dice } from '@/pages/Dice'
+import { Plinko } from '@/pages/Plinko'
+import { Keno } from '@/pages/Keno'
 import { Wallet } from '@/pages/Wallet'
 import { Profile } from '@/pages/Profile'
 import { Settings } from '@/pages/Settings'
@@ -60,6 +63,9 @@ function App() {
           <Route path="roulette" element={<Roulette />} />
           <Route path="baccarat" element={<Baccarat />} />
           <Route path="crash" element={<Crash />} />
+          <Route path="dice" element={<Dice />} />
+          <Route path="plinko" element={<Plinko />} />
+          <Route path="keno" element={<Keno />} />
           <Route path="leaderboard" element={<Leaderboard />} />
           <Route path="fair" element={<Fairness />} />
           <Route

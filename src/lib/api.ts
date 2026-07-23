@@ -53,6 +53,7 @@ export interface ApiUser {
   xp?: number
   vipLevel?: number
   referralCode?: string | null
+  twoFactorEnabled?: boolean
 }
 
 export interface WalletSummary {

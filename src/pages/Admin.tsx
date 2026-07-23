@@ -23,6 +23,29 @@ interface AdminUser {
   games_played: number | null
 }
 
+interface Analytics {
+  rounds: { day: string; rounds: number; wagered: number; payout: number }[]
+  signups: { day: string; signups: number }[]
+  byGame: { game: string; rounds: number; wagered: number; payout: number }[]
+  jackpot: { amount: number; won_count: number }
+}
+
+function MiniBars({ data, color }: { data: number[]; color: string }) {
+  const max = Math.max(1, ...data)
+  return (
+    <div className="flex h-16 items-end gap-1">
+      {data.map((v, i) => (
+        <div
+          key={i}
+          className="flex-1 rounded-t"
+          style={{ height: `${Math.max(3, (v / max) * 100)}%`, background: color, minWidth: 3 }}
+          title={String(v)}
+        />
+      ))}
+    </div>
+  )
+}
+
 export function Admin() {
   const { t } = useTranslation()
   const me = useSession((s) => s.user)
@@ -32,9 +55,11 @@ export function Admin() {
   const [adjustFor, setAdjustFor] = useState<AdminUser | null>(null)
   const [adjustAmount, setAdjustAmount] = useState('')
   const [adjustNote, setAdjustNote] = useState('')
+  const [analytics, setAnalytics] = useState<Analytics | null>(null)
 
   const loadStats = useCallback(() => {
     void api.get<{ stats: AdminStats }>('/admin/stats').then(({ stats }) => setStats(stats)).catch(() => {})
+    void api.get<Analytics>('/admin/analytics').then(setAnalytics).catch(() => {})
   }, [])
 
   const loadUsers = useCallback((q: string) => {
@@ -93,6 +118,50 @@ export function Admin() {
           </div>
         ))}
       </div>
+
+      {analytics && (
+        <div className="mb-8 grid gap-4 lg:grid-cols-3">
+          <div className="rounded-2xl border border-white/10 bg-surface p-5">
+            <div className="mb-2 text-xs font-bold uppercase tracking-wide text-white/40">
+              {t('admin.roundsPerDay')}
+            </div>
+            <MiniBars data={analytics.rounds.map((r) => r.rounds)} color="var(--color-violet)" />
+          </div>
+          <div className="rounded-2xl border border-white/10 bg-surface p-5">
+            <div className="mb-2 text-xs font-bold uppercase tracking-wide text-white/40">
+              {t('admin.wageredPerDay')}
+            </div>
+            <MiniBars data={analytics.rounds.map((r) => r.wagered)} color="var(--color-gold)" />
+          </div>
+          <div className="rounded-2xl border border-white/10 bg-surface p-5">
+            <div className="mb-2 text-xs font-bold uppercase tracking-wide text-white/40">
+              {t('admin.signupsPerDay')}
+            </div>
+            <MiniBars data={analytics.signups.map((s) => s.signups)} color="var(--color-emerald)" />
+          </div>
+          <div className="rounded-2xl border border-white/10 bg-surface p-5 lg:col-span-3">
+            <div className="mb-3 text-xs font-bold uppercase tracking-wide text-white/40">
+              {t('admin.byGame')}
+            </div>
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-7">
+              {analytics.byGame.map((g) => {
+                const edge = g.wagered > 0 ? ((g.wagered - g.payout) / g.wagered) * 100 : 0
+                return (
+                  <div key={g.game} className="rounded-xl bg-surface-2 p-3 text-center">
+                    <div className="text-sm font-bold capitalize text-white">{g.game}</div>
+                    <div className="mt-1 font-mono text-xs text-gold-soft">
+                      {g.wagered.toLocaleString('en-US')}
+                    </div>
+                    <div className="text-[10px] text-mist">
+                      {g.rounds} · {t('admin.edge')} {edge.toFixed(1)}%
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="mb-4 flex gap-2">
         <input

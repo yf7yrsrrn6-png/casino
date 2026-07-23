@@ -16,6 +16,9 @@ import { blackjackRouter } from './routes/blackjack.ts'
 import { rouletteRouter } from './routes/roulette.ts'
 import { baccaratRouter } from './routes/baccarat.ts'
 import { crashRouter } from './routes/crash.ts'
+import { diceRouter } from './routes/dice.ts'
+import { plinkoRouter } from './routes/plinko.ts'
+import { kenoRouter } from './routes/keno.ts'
 import { engagementRouter } from './routes/engagement.ts'
 import { paymentsRouter } from './routes/payments.ts'
 import { adminRouter } from './routes/admin.ts'
@@ -45,7 +48,7 @@ app.get('/api/health', (_req, res) => {
 app.get('/api/games/catalog', (_req, res) => {
   res.json({
     slots: Object.values(SLOT_CONFIGS).map((c) => ({ id: c.id, rtp: c.rtp })),
-    tables: ['blackjack', 'roulette', 'baccarat', 'crash'],
+    tables: ['blackjack', 'roulette', 'baccarat', 'crash', 'dice', 'plinko', 'keno'],
   })
 })
 
@@ -57,6 +60,9 @@ app.use('/api/games/blackjack', blackjackRouter)
 app.use('/api/games/roulette', rouletteRouter)
 app.use('/api/games/baccarat', baccaratRouter)
 app.use('/api/games/crash', crashRouter)
+app.use('/api/games/dice', diceRouter)
+app.use('/api/games/plinko', plinkoRouter)
+app.use('/api/games/keno', kenoRouter)
 app.use('/api/engagement', engagementRouter)
 app.use('/api/payments', paymentsRouter)
 app.use('/api/admin', adminRouter)

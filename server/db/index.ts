@@ -159,6 +159,14 @@ const MIGRATIONS: { id: number; name: string; sql: string }[] = [
       );
     `,
   },
+  {
+    id: 3,
+    name: 'two_factor',
+    sql: `
+      ALTER TABLE users ADD COLUMN totp_secret TEXT;
+      ALTER TABLE users ADD COLUMN totp_enabled INTEGER NOT NULL DEFAULT 0;
+    `,
+  },
 ]
 
 db.exec(`CREATE TABLE IF NOT EXISTS schema_migrations (

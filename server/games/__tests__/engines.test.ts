@@ -4,6 +4,9 @@ import { handValue, settlement, buildShoe, isBlackjack, type Card } from '../bla
 import { spinRoulette, colorOf, type RouletteBet } from '../roulette.ts'
 import { playBaccarat } from '../baccarat.ts'
 import { crashPoint, settleCrash } from '../crash.ts'
+import { rollDice, diceMultiplier, winChance } from '../dice.ts'
+import { dropPlinko, PLINKO_TABLES, PLINKO_ROWS } from '../plinko.ts'
+import { playKeno, KENO_PAYTABLE, KENO_POOL, KENO_DRAWS } from '../keno.ts'
 import { roundDigest, floatStream, hashServerSeed, newServerSeed } from '../../lib/provablyFair.ts'
 
 /** Deterministic float generator for tests. */
@@ -181,5 +184,86 @@ describe('crash', () => {
     const r = settleCrash(100, 2, 0.9)
     expect(r.won).toBe(true)
     expect(r.payout).toBe(200)
+  })
+})
+
+describe('dice', () => {
+  it('multiplier reflects ~99% RTP', () => {
+    // roll under 50: win chance 50%, multiplier ~1.98
+    expect(winChance(50, 'under')).toBeCloseTo(0.5)
+    expect(diceMultiplier(50, 'under')).toBeCloseTo(1.98, 1)
+  })
+
+  it('resolves under/over correctly', () => {
+    const under = rollDice(100, 50, 'under', 0.25) // roll 25 < 50 → win
+    expect(under.roll).toBe(25)
+    expect(under.won).toBe(true)
+    const over = rollDice(100, 50, 'over', 0.25) // roll 25 > 50 → lose
+    expect(over.won).toBe(false)
+    expect(over.payout).toBe(0)
+  })
+
+  it('sampled RTP is near the multiplier expectation', () => {
+    let f = 7
+    const next = () => {
+      f = (f * 16807) % 2147483647
+      return f / 2147483647
+    }
+    let bet = 0
+    let ret = 0
+    for (let i = 0; i < 100000; i++) {
+      ret += rollDice(100, 50, 'under', next()).payout
+      bet += 100
+    }
+    expect(ret / bet).toBeGreaterThan(0.9)
+    expect(ret / bet).toBeLessThan(1.05)
+  })
+})
+
+describe('plinko', () => {
+  it('all-left path lands in bucket 0 (edge multiplier)', () => {
+    const res = dropPlinko(100, 'medium', seq([0])) // every draw < 0.5 → left
+    expect(res.bucket).toBe(0)
+    expect(res.multiplier).toBe(PLINKO_TABLES.medium[0])
+    expect(res.path.length).toBe(PLINKO_ROWS)
+  })
+
+  it('all-right path lands in the last bucket', () => {
+    const res = dropPlinko(100, 'low', seq([0.9]))
+    expect(res.bucket).toBe(PLINKO_ROWS)
+  })
+
+  it('RTP is ~98% over many drops', () => {
+    let f = 99
+    const next = () => {
+      f = (f * 16807) % 2147483647
+      return f / 2147483647
+    }
+    let bet = 0
+    let ret = 0
+    for (let i = 0; i < 200000; i++) {
+      ret += dropPlinko(100, 'medium', next).payout
+      bet += 100
+    }
+    expect(ret / bet).toBeGreaterThan(0.9)
+    expect(ret / bet).toBeLessThan(1.06)
+  })
+})
+
+describe('keno', () => {
+  it('draws distinct in-range numbers', () => {
+    const res = playKeno(100, [1, 2, 3, 4, 5], seq([0.1, 0.3, 0.5, 0.7, 0.9, 0.2, 0.4, 0.6, 0.8, 0.05]))
+    expect(res.drawn.length).toBe(KENO_DRAWS)
+    expect(new Set(res.drawn).size).toBe(KENO_DRAWS)
+    for (const n of res.drawn) {
+      expect(n).toBeGreaterThanOrEqual(1)
+      expect(n).toBeLessThanOrEqual(KENO_POOL)
+    }
+  })
+
+  it('pays by hit count from the paytable', () => {
+    const res = playKeno(100, [1, 2], seq([0.5]))
+    expect(res.multiplier).toBe(KENO_PAYTABLE[2][res.hitCount])
+    expect(res.payout).toBe(Math.round(100 * res.multiplier))
   })
 })

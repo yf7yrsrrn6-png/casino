@@ -27,26 +27,32 @@ export function Header() {
   const online = useRealtime((s) => s.online)
   const [mobileOpen, setMobileOpen] = useState(false)
   const [profileOpen, setProfileOpen] = useState(false)
+  const [gamesOpen, setGamesOpen] = useState(false)
   const profileRef = useRef<HTMLDivElement>(null)
+  const gamesRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     function onClick(e: MouseEvent) {
       if (profileRef.current && !profileRef.current.contains(e.target as Node)) {
         setProfileOpen(false)
       }
+      if (gamesRef.current && !gamesRef.current.contains(e.target as Node)) {
+        setGamesOpen(false)
+      }
     }
     document.addEventListener('mousedown', onClick)
     return () => document.removeEventListener('mousedown', onClick)
   }, [])
 
-  const links = [
-    { to: '/', label: t('nav.home') },
-    { to: '/slots', label: t('nav.slots') },
-    { to: '/blackjack', label: t('nav.blackjack') },
-    { to: '/roulette', label: t('nav.roulette') },
-    { to: '/baccarat', label: t('nav.baccarat') },
-    { to: '/crash', label: t('nav.crash') },
-    { to: '/leaderboard', label: t('nav.leaderboard') },
+  const gameLinks = [
+    { to: '/slots', label: t('nav.slots'), icon: '🎰' },
+    { to: '/blackjack', label: t('nav.blackjack'), icon: '🃏' },
+    { to: '/roulette', label: t('nav.roulette'), icon: '🎡' },
+    { to: '/baccarat', label: t('nav.baccarat'), icon: '🀄' },
+    { to: '/crash', label: t('nav.crash'), icon: '🚀' },
+    { to: '/dice', label: t('nav.dice'), icon: '🎲' },
+    { to: '/plinko', label: t('nav.plinko'), icon: '🔵' },
+    { to: '/keno', label: t('nav.keno'), icon: '🔢' },
   ]
 
   async function handleLogout() {
@@ -63,11 +69,42 @@ export function Header() {
             <Logo />
           </Link>
           <nav className="hidden items-center gap-5 lg:flex">
-            {links.map((link) => (
-              <NavLink key={link.to} to={link.to} end={link.to === '/'} className={navLinkClass}>
-                {link.label}
-              </NavLink>
-            ))}
+            <NavLink to="/" end className={navLinkClass}>
+              {t('nav.home')}
+            </NavLink>
+            <div className="relative" ref={gamesRef}>
+              <button
+                onClick={() => setGamesOpen((v) => !v)}
+                className="flex items-center gap-1 px-1 py-2 text-sm font-semibold text-lilac hover:text-white cursor-pointer"
+              >
+                {t('nav.games')}
+                <svg width="10" height="6" viewBox="0 0 10 6" className={gamesOpen ? 'rotate-180' : ''}>
+                  <path d="M1 1l4 4 4-4" stroke="currentColor" strokeWidth="1.5" fill="none" strokeLinecap="round" />
+                </svg>
+              </button>
+              {gamesOpen && (
+                <div className="absolute left-0 top-full mt-2 grid w-64 grid-cols-2 gap-1 rounded-2xl border border-white/12 bg-surface-2 p-2 shadow-glow-violet">
+                  {gameLinks.map((g) => (
+                    <NavLink
+                      key={g.to}
+                      to={g.to}
+                      onClick={() => setGamesOpen(false)}
+                      className={({ isActive }) =>
+                        `flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-semibold ${
+                          isActive ? 'bg-gold/15 text-gold-soft' : 'text-lilac hover:bg-white/5 hover:text-white'
+                        }`
+                      }
+                    >
+                      <span>{g.icon}</span>
+                      {g.label}
+                    </NavLink>
+                  ))}
+                </div>
+              )}
+            </div>
+            <NavLink to="/leaderboard" className={navLinkClass}>
+              {t('nav.leaderboard')}
+            </NavLink>
           </nav>
         </div>
 
@@ -198,21 +235,43 @@ export function Header() {
       {mobileOpen && (
         <div className="border-t border-border bg-surface px-4 py-3 lg:hidden">
           <nav className="flex flex-col gap-1">
-            {links.map((link) => (
+            <NavLink
+              to="/"
+              end
+              onClick={() => setMobileOpen(false)}
+              className={({ isActive }) =>
+                `rounded-lg px-3 py-2.5 text-sm font-semibold ${isActive ? 'bg-gold/10 text-gold-soft' : 'text-white/70'}`
+              }
+            >
+              {t('nav.home')}
+            </NavLink>
+            <div className="px-3 pb-1 pt-2 text-[10px] font-bold uppercase tracking-wide text-white/30">
+              {t('nav.games')}
+            </div>
+            {gameLinks.map((link) => (
               <NavLink
                 key={link.to}
                 to={link.to}
-                end={link.to === '/'}
                 onClick={() => setMobileOpen(false)}
                 className={({ isActive }) =>
-                  `rounded-lg px-3 py-2.5 text-sm font-semibold ${
+                  `flex items-center gap-2 rounded-lg px-3 py-2.5 text-sm font-semibold ${
                     isActive ? 'bg-gold/10 text-gold-soft' : 'text-white/70'
                   }`
                 }
               >
+                <span>{link.icon}</span>
                 {link.label}
               </NavLink>
             ))}
+            <NavLink
+              to="/leaderboard"
+              onClick={() => setMobileOpen(false)}
+              className={({ isActive }) =>
+                `rounded-lg px-3 py-2.5 text-sm font-semibold ${isActive ? 'bg-gold/10 text-gold-soft' : 'text-white/70'}`
+              }
+            >
+              {t('nav.leaderboard')}
+            </NavLink>
             {isAuthenticated ? (
               <>
                 <NavLink
