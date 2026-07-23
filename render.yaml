@@ -1,0 +1,39 @@
+# One-click deploy for TakeMyLucky (full app: SPA + API + WebSocket + SQLite).
+# In Render: New → Blueprint → connect this repo → Apply.
+# The whole platform runs as a single web service; the Node server serves the
+# built SPA, the REST API, and the realtime WebSocket. SQLite lives on a
+# persistent disk so accounts and balances survive restarts and redeploys.
+services:
+  - type: web
+    name: takemylucky
+    runtime: node
+    plan: free
+    branch: claude/casino-site-demo-nnungs
+    # Install dev deps too (vite/tsc/tsx live there) so the build can run.
+    buildCommand: npm install --include=dev && npm run build
+    # Seed demo accounts (idempotent) then start the production server.
+    startCommand: sh -c "npm run seed || true; npm start"
+    healthCheckPath: /api/health
+    autoDeploy: true
+    disk:
+      name: takemylucky-data
+      mountPath: /var/data
+      sizeGB: 1
+    envVars:
+      - key: NODE_VERSION
+        value: "22"
+      - key: NODE_ENV
+        value: production
+      # Strong random session secret, generated once by Render and kept stable.
+      - key: JWT_SECRET
+        generateValue: true
+      # SQLite database file on the persistent disk.
+      - key: DB_PATH
+        value: /var/data/casino.db
+      # Real-money cashier stays OFF. Demo credits only. A licensed operator
+      # wires a real payment/KYC provider and flips this to true at go-live.
+      - key: REAL_MONEY_ENABLED
+        value: "false"
+      # Optional: comma-separated emails auto-granted admin. Set your own here.
+      - key: ADMIN_EMAILS
+        value: ""
