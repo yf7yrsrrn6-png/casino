@@ -1,0 +1,19 @@
+services:
+  takemylucky:
+    build: .
+    ports:
+      - "3001:3001"
+    environment:
+      NODE_ENV: production
+      PORT: 3001
+      # CHANGE THIS in a real deployment (see .env.example).
+      JWT_SECRET: ${JWT_SECRET:-change-me-in-production}
+      STARTING_BALANCE: ${STARTING_BALANCE:-10000}
+      ADMIN_EMAILS: ${ADMIN_EMAILS:-}
+      REAL_MONEY_ENABLED: "false"
+    volumes:
+      - casino-data:/app/data
+    restart: unless-stopped
+
+volumes:
+  casino-data:

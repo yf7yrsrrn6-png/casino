@@ -50,6 +50,9 @@ export interface ApiUser {
   status: 'active' | 'banned'
   selfExcludedUntil: number | null
   createdAt: number
+  xp?: number
+  vipLevel?: number
+  referralCode?: string | null
 }
 
 export interface WalletSummary {

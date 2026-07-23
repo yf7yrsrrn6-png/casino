@@ -3,9 +3,11 @@ import { NavLink, Link, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { useSession } from '@/store/useSession'
 import { useWallet } from '@/store/useWallet'
+import { useRealtime } from '@/store/useRealtime'
 import { LanguageSwitcher } from '@/components/layout/LanguageSwitcher'
 import { Logo } from '@/components/layout/Logo'
 import { BalanceChip } from '@/components/layout/BalanceChip'
+import { NotificationsBell } from '@/components/layout/NotificationsBell'
 import { Button } from '@/components/ui/Button'
 
 const navLinkClass = ({ isActive }: { isActive: boolean }) =>
@@ -22,6 +24,7 @@ export function Header() {
   const email = user?.email ?? null
   const isAdmin = user?.role === 'admin'
   const balance = useWallet((s) => s.balance)
+  const online = useRealtime((s) => s.online)
   const [mobileOpen, setMobileOpen] = useState(false)
   const [profileOpen, setProfileOpen] = useState(false)
   const profileRef = useRef<HTMLDivElement>(null)
@@ -41,6 +44,9 @@ export function Header() {
     { to: '/slots', label: t('nav.slots') },
     { to: '/blackjack', label: t('nav.blackjack') },
     { to: '/roulette', label: t('nav.roulette') },
+    { to: '/baccarat', label: t('nav.baccarat') },
+    { to: '/crash', label: t('nav.crash') },
+    { to: '/leaderboard', label: t('nav.leaderboard') },
   ]
 
   async function handleLogout() {
@@ -52,11 +58,11 @@ export function Header() {
   return (
     <header className="sticky top-0 z-40 border-b border-border/80 bg-ink/85 backdrop-blur-md">
       <div className="mx-auto flex h-16 max-w-7xl items-center justify-between gap-4 px-4 sm:px-6">
-        <div className="flex items-center gap-8">
+        <div className="flex items-center gap-6">
           <Link to="/" className="shrink-0">
             <Logo />
           </Link>
-          <nav className="hidden items-center gap-6 md:flex">
+          <nav className="hidden items-center gap-5 lg:flex">
             {links.map((link) => (
               <NavLink key={link.to} to={link.to} end={link.to === '/'} className={navLinkClass}>
                 {link.label}
@@ -65,16 +71,30 @@ export function Header() {
           </nav>
         </div>
 
-        <div className="flex items-center gap-2.5 sm:gap-3">
+        <div className="flex items-center gap-2 sm:gap-2.5">
+          {online > 0 && (
+            <span className="hidden items-center gap-1.5 rounded-full border border-emerald/30 bg-emerald/10 px-2.5 py-1.5 text-xs font-bold text-emerald xl:flex">
+              <span className="h-1.5 w-1.5 rounded-full bg-emerald animate-blink" />
+              {online.toLocaleString('en-US')} {t('header.online')}
+            </span>
+          )}
           <LanguageSwitcher />
           {isAuthenticated ? (
             <>
+              <Link
+                to="/vip"
+                className="hidden items-center gap-1 rounded-lg border border-violet/40 bg-violet/12 px-2.5 py-1.5 text-xs font-bold text-violet hover:border-violet/70 sm:flex"
+                title={t('nav.vip')}
+              >
+                ⭐ {t('header.level')} {user?.vipLevel ?? 0}
+              </Link>
               <BalanceChip balance={balance} />
-              <Link to="/wallet" className="hidden sm:block">
+              <Link to="/bonuses" className="hidden sm:block">
                 <Button variant="secondary" size="sm">
-                  {t('nav.deposit')}
+                  🎁
                 </Button>
               </Link>
+              <NotificationsBell />
               <div className="relative" ref={profileRef}>
                 <button
                   onClick={() => setProfileOpen((v) => !v)}
@@ -101,6 +121,27 @@ export function Header() {
                       className="block px-3.5 py-2.5 text-sm text-white/80 hover:bg-white/5"
                     >
                       {t('nav.wallet')}
+                    </Link>
+                    <Link
+                      to="/vip"
+                      onClick={() => setProfileOpen(false)}
+                      className="block px-3.5 py-2.5 text-sm text-white/80 hover:bg-white/5"
+                    >
+                      {t('nav.vip')}
+                    </Link>
+                    <Link
+                      to="/bonuses"
+                      onClick={() => setProfileOpen(false)}
+                      className="block px-3.5 py-2.5 text-sm text-white/80 hover:bg-white/5"
+                    >
+                      {t('nav.bonuses')}
+                    </Link>
+                    <Link
+                      to="/fair"
+                      onClick={() => setProfileOpen(false)}
+                      className="block px-3.5 py-2.5 text-sm text-white/80 hover:bg-white/5"
+                    >
+                      {t('nav.fairness')}
                     </Link>
                     <Link
                       to="/settings"
@@ -144,7 +185,7 @@ export function Header() {
           )}
           <button
             onClick={() => setMobileOpen((v) => !v)}
-            className="flex h-9 w-9 items-center justify-center rounded-lg border border-border text-white/80 md:hidden cursor-pointer"
+            className="flex h-9 w-9 items-center justify-center rounded-lg border border-border text-white/80 lg:hidden cursor-pointer"
             aria-label="Menu"
           >
             <svg width="18" height="14" viewBox="0 0 18 14" fill="none">
@@ -155,7 +196,7 @@ export function Header() {
       </div>
 
       {mobileOpen && (
-        <div className="border-t border-border bg-surface px-4 py-3 md:hidden">
+        <div className="border-t border-border bg-surface px-4 py-3 lg:hidden">
           <nav className="flex flex-col gap-1">
             {links.map((link) => (
               <NavLink

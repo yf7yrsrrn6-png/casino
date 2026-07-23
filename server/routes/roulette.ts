@@ -8,6 +8,7 @@ import { spinRoulette, validateBet, type RouletteBet } from '../games/roulette.t
 import { assertBetAllowed, getWallet, settleRound } from '../services/wallet.ts'
 import { nextRandom, publicSeedInfo } from '../services/fairness.ts'
 import { recordRound } from '../services/rounds.ts'
+import { afterRound } from '../services/gameplay.ts'
 
 export const rouletteRouter = Router()
 rouletteRouter.use(requireAuth, requirePlayable)
@@ -49,10 +50,18 @@ rouletteRouter.post(
       fair: { serverSeedHash: meta.serverSeedHash, clientSeed: meta.clientSeed, nonce: meta.nonce },
     })
 
-    const updated = getWallet(req.user!.id)
+    const extras = afterRound({
+      userId: req.user!.id,
+      displayName: req.user!.displayName,
+      game: 'roulette',
+      gameId: 'roulette',
+      bet: totalStake,
+      payout: result.totalPayout,
+    })
+
     res.json({
       result,
-      balance: updated.balance,
+      balance: extras.balance,
       fair: { ...publicSeedInfo(req.user!.id), nonce: meta.nonce },
     })
   }),

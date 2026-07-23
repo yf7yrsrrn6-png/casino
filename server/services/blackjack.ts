@@ -12,6 +12,7 @@ import {
 import { debitBet, creditPayout, getWallet, markGamePlayed, assertBetAllowed } from './wallet.ts'
 import { nextRandom, publicSeedInfo } from './fairness.ts'
 import { recordRound } from './rounds.ts'
+import { afterRound } from './gameplay.ts'
 
 interface BjState {
   status: 'player' | 'done'
@@ -83,6 +84,14 @@ function finish(userId: string, state: BjState): void {
     payout,
     outcome: state.result,
     fair: state.fair,
+  })
+  afterRound({
+    userId,
+    game: 'blackjack',
+    gameId: 'blackjack',
+    bet: state.bet,
+    payout,
+    blackjackNatural: outcome === 'player_blackjack',
   })
   saveState(userId, state)
 }

@@ -24,10 +24,23 @@ outcome lives on the server — the browser only renders and animates what the s
 - Atomic settlement (a bet can never overdraw or double-spend)
 - Demo top-ups and balance reset; full transaction history per account
 
-**Games (all resolved on the server)**
+**Games (all resolved on the server, provably fair)**
 - **Slots** — 6 machines, weighted reels, 5 paylines, animated to the server result
 - **Blackjack** — server holds the shoe & state; hit / stand / double, dealer stands on 17, 3:2
 - **Roulette** — European single-zero wheel with inside & outside bets
+- **Baccarat** — punto banco with the full third-card drawing rules (Player / Banker / Tie)
+- **Crash** — provably-fair rising-multiplier game with a cash-out target
+
+**Realtime & engagement (the "premium" layer)**
+- **WebSocket** live updates: players-online counter, live winners feed, live jackpot,
+  and per-user push notifications with in-app toasts
+- **Progressive jackpot** — a real server pool funded by a rake on every bet and won on slots
+- **VIP / loyalty** — XP from wagering, tiers (Rookie → Elite), scaling daily bonuses
+- **Bonuses** — claimable daily bonus, promo-code redemption, referral codes
+- **Achievements** — unlockable badges awarded on gameplay events
+- **Leaderboards** — weekly rankings by amount wagered and by net profit
+- **Provably-fair verifier** — recompute any past round yourself from the revealed seeds
+- Confetti + Web-Audio win effects (respect the sound / reduced-motion settings)
 
 **Provably fair**
 - Each outcome is `HMAC-SHA256(serverSeed, "clientSeed:nonce")`
@@ -85,7 +98,27 @@ a platform load balancer). `secure` cookies are enabled automatically when `NODE
 | `npm run build` | type-check + production SPA build |
 | `npm start` | run the server in production (serves API + SPA) |
 | `npm run typecheck` | type-check web and server |
+| `npm test` | run the engine / provably-fair unit tests (vitest) |
+| `npm run seed` | populate demo players, history and promo codes |
 | `npm run lint` | oxlint |
+
+## Docker
+
+```bash
+docker compose up --build      # serves the app on :3001
+```
+
+Set `JWT_SECRET` (and optionally `ADMIN_EMAILS`) in your environment or a `.env` file first.
+The SQLite database persists in the `casino-data` volume.
+
+## CI
+
+`.github/workflows/ci.yml` runs lint, type-check (web + server), unit tests and the build on
+every push and pull request.
+
+## Demo promo codes
+
+`WELCOME` (+5,000) and `LUCKY777` (+7,770) exist out of the box; `npm run seed` adds more.
 
 ## Project layout
 

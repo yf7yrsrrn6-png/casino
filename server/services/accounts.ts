@@ -17,6 +17,15 @@ export interface FullUserRow {
   self_excluded_until: number | null
   created_at: number
   last_login_at: number | null
+  xp: number
+  vip_level: number
+  referral_code: string | null
+  referred_by: string | null
+  daily_claimed_at: number | null
+}
+
+function makeReferralCode(): string {
+  return Math.random().toString(36).slice(2, 8).toUpperCase()
 }
 
 export function findByEmail(email: string): FullUserRow | undefined {
@@ -41,9 +50,9 @@ export const createUser = db.transaction(
     const name = displayName?.trim() || normalized.split('@')[0]
 
     db.prepare(
-      `INSERT INTO users (id, email, display_name, password_hash, password_salt, role, status, created_at)
-       VALUES (?, ?, ?, ?, ?, ?, 'active', ?)`,
-    ).run(id, normalized, name, hash, salt, role, now())
+      `INSERT INTO users (id, email, display_name, password_hash, password_salt, role, status, created_at, referral_code)
+       VALUES (?, ?, ?, ?, ?, ?, 'active', ?, ?)`,
+    ).run(id, normalized, name, hash, salt, role, now(), makeReferralCode())
 
     createWallet(id)
     ensureActiveSeed(id)
@@ -86,5 +95,8 @@ export function publicUser(row: FullUserRow) {
     status: row.status,
     selfExcludedUntil: row.self_excluded_until,
     createdAt: row.created_at,
+    xp: row.xp,
+    vipLevel: row.vip_level,
+    referralCode: row.referral_code,
   }
 }

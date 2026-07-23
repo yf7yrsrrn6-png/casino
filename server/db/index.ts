@@ -103,6 +103,62 @@ const MIGRATIONS: { id: number; name: string; sql: string }[] = [
       CREATE INDEX idx_audit_created ON audit_log(created_at DESC);
     `,
   },
+  {
+    id: 2,
+    name: 'engagement',
+    sql: `
+      ALTER TABLE users ADD COLUMN xp INTEGER NOT NULL DEFAULT 0;
+      ALTER TABLE users ADD COLUMN vip_level INTEGER NOT NULL DEFAULT 0;
+      ALTER TABLE users ADD COLUMN referral_code TEXT;
+      ALTER TABLE users ADD COLUMN referred_by TEXT;
+      ALTER TABLE users ADD COLUMN daily_claimed_at INTEGER;
+      CREATE INDEX idx_users_referral ON users(referral_code);
+
+      -- Single-row progressive jackpot pool.
+      CREATE TABLE jackpot (
+        id         INTEGER PRIMARY KEY CHECK (id = 1),
+        amount     INTEGER NOT NULL,
+        seed       INTEGER NOT NULL,
+        won_count  INTEGER NOT NULL DEFAULT 0,
+        updated_at INTEGER NOT NULL
+      );
+
+      CREATE TABLE promo_codes (
+        code            TEXT PRIMARY KEY,
+        amount          INTEGER NOT NULL,
+        max_redemptions INTEGER,           -- NULL = unlimited
+        redemptions     INTEGER NOT NULL DEFAULT 0,
+        expires_at      INTEGER,
+        active          INTEGER NOT NULL DEFAULT 1,
+        created_at      INTEGER NOT NULL
+      );
+
+      CREATE TABLE promo_redemptions (
+        user_id     TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        code        TEXT NOT NULL,
+        redeemed_at INTEGER NOT NULL,
+        PRIMARY KEY (user_id, code)
+      );
+
+      CREATE TABLE notifications (
+        id         TEXT PRIMARY KEY,
+        user_id    TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        type       TEXT NOT NULL,
+        title      TEXT NOT NULL,
+        body       TEXT,
+        read       INTEGER NOT NULL DEFAULT 0,
+        created_at INTEGER NOT NULL
+      );
+      CREATE INDEX idx_notif_user ON notifications(user_id, created_at DESC);
+
+      CREATE TABLE user_achievements (
+        user_id        TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        achievement_id TEXT NOT NULL,
+        unlocked_at    INTEGER NOT NULL,
+        PRIMARY KEY (user_id, achievement_id)
+      );
+    `,
+  },
 ]
 
 db.exec(`CREATE TABLE IF NOT EXISTS schema_migrations (

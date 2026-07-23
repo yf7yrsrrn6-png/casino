@@ -1,64 +1,58 @@
 import { Router } from 'express'
 import { z } from 'zod'
-import { handler, badRequest, notFound } from '../lib/http.ts'
+import { handler, badRequest } from '../lib/http.ts'
 import { parse } from '../lib/validate.ts'
 import { requireAuth } from '../middleware/auth.ts'
 import { requirePlayable } from '../middleware/playable.ts'
-import { SLOT_CONFIGS, spinSlot } from '../games/slots.ts'
+import { settleCrash, MAX_MULTIPLIER } from '../games/crash.ts'
 import { assertBetAllowed, getWallet, settleRound } from '../services/wallet.ts'
 import { nextRandom, publicSeedInfo } from '../services/fairness.ts'
 import { recordRound } from '../services/rounds.ts'
 import { afterRound } from '../services/gameplay.ts'
 
-export const slotsRouter = Router()
-slotsRouter.use(requireAuth, requirePlayable)
+export const crashRouter = Router()
+crashRouter.use(requireAuth, requirePlayable)
 
-const spinSchema = z.object({
-  gameId: z.string().min(1).max(64),
+const betSchema = z.object({
   bet: z.number().int().positive().max(1_000_000),
+  target: z.number().min(1.01).max(MAX_MULTIPLIER),
 })
 
-slotsRouter.post(
-  '/spin',
+crashRouter.post(
+  '/bet',
   handler(async (req, res) => {
-    const { gameId, bet } = parse(spinSchema, req.body)
-    const cfg = SLOT_CONFIGS[gameId]
-    if (!cfg) throw notFound('unknown_game')
+    const { bet, target } = parse(betSchema, req.body)
+    const roundedTarget = Math.floor(target * 100) / 100
 
     const wallet = getWallet(req.user!.id)
     if (wallet.balance < bet) throw badRequest('insufficient_funds')
     assertBetAllowed(req.user!.id, bet)
 
     const { next, meta } = nextRandom(req.user!.id)
-    const result = spinSlot(cfg, bet, next)
+    const result = settleCrash(bet, roundedTarget, next())
 
-    settleRound({ userId: req.user!.id, bet, payout: result.totalWin, label: gameId })
+    settleRound({ userId: req.user!.id, bet, payout: result.payout, label: 'crash' })
     recordRound({
       userId: req.user!.id,
-      game: 'slots',
-      gameId,
+      game: 'crash',
+      gameId: 'crash',
       bet,
-      payout: result.totalWin,
+      payout: result.payout,
       outcome: result,
       fair: { serverSeedHash: meta.serverSeedHash, clientSeed: meta.clientSeed, nonce: meta.nonce },
     })
-
-    // One more provably-fair draw decides the progressive jackpot.
     const extras = afterRound({
       userId: req.user!.id,
       displayName: req.user!.displayName,
-      game: 'slots',
-      gameId,
+      game: 'crash',
+      gameId: 'crash',
       bet,
-      payout: result.totalWin,
-      jackpotDraw: next(),
+      payout: result.payout,
     })
 
     res.json({
       result,
       balance: extras.balance,
-      jackpotWin: extras.jackpotWin,
-      jackpot: extras.jackpot,
       fair: { ...publicSeedInfo(req.user!.id), nonce: meta.nonce },
     })
   }),

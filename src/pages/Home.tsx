@@ -9,7 +9,7 @@ import { filterGames, type GameTab } from '@/lib/filterGames'
 import { HeroSlot } from '@/components/home/HeroSlot'
 import { WinnersTicker } from '@/components/home/WinnersTicker'
 import { Button } from '@/components/ui/Button'
-import { useLiveJackpot } from '@/lib/useLiveJackpot'
+import { useRealtime } from '@/store/useRealtime'
 
 const FEATURES = [
   { key: 1, icon: '🎁' },
@@ -25,7 +25,7 @@ function fmt(n: number) {
 export function Home() {
   const { t } = useTranslation()
   const isAuthenticated = useSession((s) => Boolean(s.user))
-  const jackpot = useLiveJackpot()
+  const jackpot = useRealtime((s) => s.jackpot)
   const [tab, setTab] = useState<GameTab>('all')
 
   const registerTo = isAuthenticated ? '/slots' : '/register'
@@ -204,7 +204,7 @@ export function Home() {
           {[
             { key: 1, emoji: '🎡', seats: '6/7', min: 20, to: '/roulette' },
             { key: 2, emoji: '🃏', seats: '4/7', min: 100, to: '/blackjack' },
-            { key: 3, emoji: '🀄', seats: '5/7', min: 50, to: null },
+            { key: 3, emoji: '🀄', seats: '5/7', min: 50, to: '/baccarat' },
           ].map((l) => (
             <div
               key={l.key}

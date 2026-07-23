@@ -1,9 +1,11 @@
 import { randomUUID } from 'node:crypto'
 import { db, now } from '../db/index.ts'
 
+export type GameKind = 'slots' | 'blackjack' | 'roulette' | 'baccarat' | 'crash'
+
 export interface RoundInput {
   userId: string
-  game: 'slots' | 'blackjack' | 'roulette'
+  game: GameKind
   gameId?: string
   bet: number
   payout: number

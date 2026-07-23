@@ -7,6 +7,7 @@ import { useSession } from '@/store/useSession'
 import { useWallet } from '@/store/useWallet'
 import { Button } from '@/components/ui/Button'
 import { ACCENT_TEXT } from '@/lib/slotTheme'
+import { confettiBurst, playSound } from '@/lib/effects'
 
 const BET_PRESETS = [10, 25, 50, 100, 250, 500]
 const REEL_STOP_DELAYS = [550, 950, 1350]
@@ -133,6 +134,15 @@ export function SlotMachine({ slot }: { slot: SlotDefinition }) {
       if (totalWin > 0) {
         setSessionWin((v) => v + totalWin)
         setMessage({ tier, amount: totalWin })
+        if (tier === 'jackpot') {
+          confettiBurst(180)
+          playSound('big')
+        } else if (tier === 'big') {
+          confettiBurst(110)
+          playSound('big')
+        } else {
+          playSound('win')
+        }
       } else {
         setMessage({ tier: 'none', amount: 0 })
       }

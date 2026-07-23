@@ -4,6 +4,7 @@ import { Layout } from '@/components/layout/Layout'
 import { ProtectedRoute, AdminRoute } from '@/lib/ProtectedRoute'
 import { useSession } from '@/store/useSession'
 import { useWallet } from '@/store/useWallet'
+import { RealtimeProvider } from '@/components/realtime/RealtimeProvider'
 import { Home } from '@/pages/Home'
 import { Login } from '@/pages/Login'
 import { Register } from '@/pages/Register'
@@ -11,10 +12,16 @@ import { Slots } from '@/pages/Slots'
 import { SlotGame } from '@/pages/SlotGame'
 import { Blackjack } from '@/pages/Blackjack'
 import { Roulette } from '@/pages/Roulette'
+import { Baccarat } from '@/pages/Baccarat'
+import { Crash } from '@/pages/Crash'
 import { Wallet } from '@/pages/Wallet'
 import { Profile } from '@/pages/Profile'
 import { Settings } from '@/pages/Settings'
 import { Admin } from '@/pages/Admin'
+import { Vip } from '@/pages/Vip'
+import { Bonuses } from '@/pages/Bonuses'
+import { Leaderboard } from '@/pages/Leaderboard'
+import { Fairness } from '@/pages/Fairness'
 import { NotFound } from '@/pages/NotFound'
 
 function App() {
@@ -41,6 +48,7 @@ function App() {
 
   return (
     <BrowserRouter>
+      <RealtimeProvider />
       <Routes>
         <Route element={<Layout />}>
           <Route index element={<Home />} />
@@ -50,6 +58,10 @@ function App() {
           <Route path="slots/:slotId" element={<SlotGame />} />
           <Route path="blackjack" element={<Blackjack />} />
           <Route path="roulette" element={<Roulette />} />
+          <Route path="baccarat" element={<Baccarat />} />
+          <Route path="crash" element={<Crash />} />
+          <Route path="leaderboard" element={<Leaderboard />} />
+          <Route path="fair" element={<Fairness />} />
           <Route
             path="wallet"
             element={
@@ -71,6 +83,22 @@ function App() {
             element={
               <ProtectedRoute>
                 <Settings />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="vip"
+            element={
+              <ProtectedRoute>
+                <Vip />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="bonuses"
+            element={
+              <ProtectedRoute>
+                <Bonuses />
               </ProtectedRoute>
             }
           />
