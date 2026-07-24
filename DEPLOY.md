@@ -7,21 +7,46 @@ frontend/backend needed.
 
 > Netlify note: Netlify hosts static sites + short-lived serverless functions,
 > so it cannot run this persistent server, its WebSocket, or SQLite-on-disk.
-> Use Render (below) — or any host that runs a long-lived Node process — to
-> deploy the whole app as one service.
+> Use any host that runs a long-lived Node process (Railway, Fly.io, Render, a
+> VPS) to deploy the whole app as one service.
 
-## Fastest: Render (one click, free tier)
+## Recommended: Railway (GitHub deploy, builds our Dockerfile)
 
 1. Push this branch (already done): `claude/casino-site-demo-nnungs`.
-2. Go to https://render.com → sign up / log in (free).
-3. **New → Blueprint** → connect your GitHub → pick the `casino` repo.
-4. Render reads `render.yaml` and proposes the **takemylucky** service. Click
-   **Apply**. It auto-fills build/start commands, a persistent disk for the DB,
-   and a generated `JWT_SECRET`.
-5. Wait for the first build (~2–4 min). You get a URL like
-   `https://takemylucky.onrender.com`.
+2. Go to https://railway.app → sign in with GitHub.
+3. **New Project → Deploy from GitHub repo** → pick the `casino` repo, and set
+   the branch to `claude/casino-site-demo-nnungs`. Railway reads `railway.json`
+   and builds the included `Dockerfile` (SPA + API + WebSocket in one service).
+4. Add a **Volume** (service → **Data / Volumes → Add Volume**), mount path
+   `/app/data`. This is where SQLite lives so accounts survive restarts.
+5. Set **Variables** (service → **Variables**):
+   - `NODE_ENV=production`
+   - `JWT_SECRET=` → a long random string (e.g. run `openssl rand -hex 32`)
+   - `DB_PATH=/app/data/casino.db`
+   - `REAL_MONEY_ENABLED=false`
+   - `ADMIN_EMAILS=` → your email (optional, for `/admin`)
+6. Service → **Settings → Networking → Generate Domain**. You get a URL like
+   `https://takemylucky-production.up.railway.app`.
 
-That URL is your live test link — open it, register, and play.
+That URL is your live test link — open it, register, and play. Railway injects
+`PORT` automatically and the server listens on it.
+
+## Alternative: Fly.io (CLI, free-tier friendly)
+
+```bash
+# one-time: install flyctl, then from the repo root:
+fly launch --no-deploy          # detects the Dockerfile, creates fly.toml
+fly volumes create data --size 1
+# in fly.toml add a [mounts] entry: source = "data", destination = "/app/data"
+fly secrets set JWT_SECRET=$(openssl rand -hex 32) DB_PATH=/app/data/casino.db REAL_MONEY_ENABLED=false
+fly deploy
+```
+`fly open` prints your public URL.
+
+## Alternative: Render (blueprint in `render.yaml`)
+
+New → Blueprint → connect the repo → Apply. Uses `render.yaml` (persistent
+disk + generated `JWT_SECRET` already defined).
 
 ### Demo logins (seeded automatically on first boot)
 - `alice@demo.tml` … `erin@demo.tml`  ·  password: `password123`
