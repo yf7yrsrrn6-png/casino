@@ -1,5 +1,25 @@
 # Deploying TakeMyLucky (live test link)
 
+## One-click deploy buttons
+
+The final "Deploy" step must be done from **your own** hosting account (it is
+tied to your login and billing), but these buttons pre-fill everything so it is
+essentially one click after you sign in:
+
+- **Render** (reads `render.yaml` — auto-creates the disk + `JWT_SECRET`, the
+  fewest manual steps):
+  https://render.com/deploy?repo=https://github.com/yf7yrsrrn6-png/casino
+
+- **Railway** (builds the `Dockerfile`): open https://railway.app/new → **Deploy
+  from GitHub repo** → pick `yf7yrsrrn6-png/casino`, branch
+  `claude/casino-site-demo-nnungs`, then add a volume at `/app/data` and the
+  variables listed below.
+
+After it finishes you get a public URL — that is your live test link.
+
+---
+
+
 The whole platform runs as **one Node web service**: it serves the built SPA,
 the REST API, and the realtime WebSocket, with SQLite on a persistent disk.
 This is why a single deploy gives you a fully working public URL — no split
