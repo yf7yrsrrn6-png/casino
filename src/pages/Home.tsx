@@ -6,7 +6,7 @@ import { SLOTS } from '@/data/slots'
 import { SlotCard } from '@/components/slots/SlotCard'
 import { GameTabs } from '@/components/slots/GameTabs'
 import { filterGames, type GameTab } from '@/lib/filterGames'
-import { HeroSlot } from '@/components/home/HeroSlot'
+import heroMachine from '@/assets/hero-machine.webp'
 import { WinnersTicker } from '@/components/home/WinnersTicker'
 import { Button } from '@/components/ui/Button'
 import { useRealtime } from '@/store/useRealtime'
@@ -79,14 +79,15 @@ export function Home() {
           </div>
 
           <div className="relative flex justify-center">
-            <div className="pointer-events-none absolute -left-6 top-0 text-3xl animate-float">🍭</div>
-            <div className="pointer-events-none absolute right-0 top-[20%] text-2xl animate-float [animation-delay:0.6s]">
-              🍬
-            </div>
-            <div className="pointer-events-none absolute -left-2 bottom-[10%] text-2xl animate-float [animation-delay:0.3s]">
-              🍇
-            </div>
-            <HeroSlot />
+            <div
+              aria-hidden
+              className="pointer-events-none absolute inset-0 -z-0 rounded-full bg-[radial-gradient(circle_at_center,rgba(255,61,139,0.4),rgba(168,85,247,0.25)_40%,transparent_65%)] blur-2xl animate-glow-pulse"
+            />
+            <img
+              src={heroMachine}
+              alt="TakeMyLucky"
+              className="relative w-full max-w-md animate-float drop-shadow-[0_34px_70px_rgba(0,0,0,0.65)]"
+            />
           </div>
         </div>
       </section>
