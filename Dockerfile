@@ -5,8 +5,15 @@
 FROM node:22-bookworm-slim AS build
 WORKDIR /app
 
-# Install all deps once (better-sqlite3 ships prebuilt binaries for this
-# platform, so no native compilation is needed). Skip audit/fund for speed.
+# Build toolchain for native modules (better-sqlite3): if a prebuilt binary
+# isn't available for this Node ABI, node-gyp compiles from source and needs
+# python3/make/g++. Installed only in the build stage; the runtime image reuses
+# the already-compiled binary.
+RUN apt-get update \
+  && apt-get install -y --no-install-recommends python3 make g++ \
+  && rm -rf /var/lib/apt/lists/*
+
+# Install all deps once. Skip audit/fund for speed.
 COPY package.json package-lock.json ./
 RUN npm ci --no-audit --no-fund
 
