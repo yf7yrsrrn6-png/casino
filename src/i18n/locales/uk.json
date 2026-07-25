@@ -12,7 +12,8 @@
     "save": "Зберегти",
     "back": "Назад",
     "currency": "кредитів",
-    "currencyShort": "кр"
+    "currencyShort": "кр",
+    "continue": "Продовжити"
   },
   "nav": {
     "home": "Головна",

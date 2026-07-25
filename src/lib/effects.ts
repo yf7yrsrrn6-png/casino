@@ -58,7 +58,7 @@ export function confettiBurst(count = 120) {
 let audioCtx: AudioContext | null = null
 
 /** Short synthesized win/lose cues via Web Audio — respects the sound setting. */
-export function playSound(kind: 'win' | 'big' | 'lose' | 'click') {
+export function playSound(kind: 'win' | 'big' | 'lose' | 'click' | 'spin') {
   if (!useSettingsStore.getState().soundEnabled) return
   try {
     audioCtx = audioCtx ?? new (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)()
@@ -70,7 +70,9 @@ export function playSound(kind: 'win' | 'big' | 'lose' | 'click') {
           ? [523, 784]
           : kind === 'lose'
             ? [330, 247]
-            : [660]
+            : kind === 'spin'
+              ? [880]
+              : [660]
     notes.forEach((freq, i) => {
       const osc = ctx.createOscillator()
       const gain = ctx.createGain()

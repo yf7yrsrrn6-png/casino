@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Link } from 'react-router-dom'
 import type { SlotDefinition } from '@/types'
@@ -6,17 +6,17 @@ import { api, ApiError, type FairInfo } from '@/lib/api'
 import { useSession } from '@/store/useSession'
 import { useWallet } from '@/store/useWallet'
 import { Button } from '@/components/ui/Button'
-import { ACCENT_TEXT } from '@/lib/slotTheme'
+import { ACCENT_TEXT, ACCENT_HEX } from '@/lib/slotTheme'
 import { confettiBurst, playSound } from '@/lib/effects'
 
 const BET_PRESETS = [10, 25, 50, 100, 250, 500]
-const REEL_STOP_DELAYS = [550, 950, 1350]
-const FLICKER_INTERVAL = 70
+const REEL_STOP_DELAYS = [640, 1020, 1440]
 const REELS = 3
 const ROWS = 3
 const PAYLINE_COUNT = 5
 
 type WinTier = 'none' | 'win' | 'big' | 'jackpot'
+type Phase = 'idle' | 'spinning' | 'stopped'
 
 interface SpinResponse {
   result: {
@@ -49,34 +49,130 @@ function errorKey(code?: string): string {
   }
 }
 
+function isNumericGlyph(glyph: string) {
+  return /^[0-9]+$/.test(glyph)
+}
+
+/** A single reel: rolls a blurred strip while spinning, then drops onto the
+ *  server column with an overshoot bounce. Winning symbols keep a gold frame. */
+function Reel({
+  column,
+  phase,
+  glyphs,
+  landKey,
+  winRows,
+  accentHex,
+}: {
+  column: string[]
+  phase: Phase
+  glyphs: string[]
+  landKey: number
+  winRows: boolean[]
+  accentHex: string
+}) {
+  // A seamless 9-tile blur strip (three identical triples) for the spin loop.
+  const rollStrip = useMemo(() => {
+    const triple = Array.from({ length: 3 }, () => glyphs[Math.floor(Math.random() * glyphs.length)])
+    return [...triple, ...triple, ...triple]
+  }, [glyphs])
+
+  return (
+    <div className="reel-window relative h-[13.8rem] overflow-hidden rounded-xl bg-black/45 sm:h-[16.8rem]">
+      {/* glass reflection */}
+      <div className="reel-glass pointer-events-none absolute inset-0 z-10" />
+      {phase === 'spinning' ? (
+        <div className="reel-rolling reel-spinning flex flex-col">
+          {rollStrip.map((glyph, i) => (
+            <SlotTile key={i} glyph={glyph} />
+          ))}
+        </div>
+      ) : (
+        <div className="flex flex-col">
+          {column.map((glyph, row) => (
+            <SlotTile
+              key={`${landKey}-${row}`}
+              glyph={glyph}
+              landing={phase === 'stopped'}
+              stagger={row * 0.06}
+              win={winRows[row]}
+              accentHex={accentHex}
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function SlotTile({
+  glyph,
+  landing = false,
+  stagger = 0,
+  win = false,
+  accentHex,
+}: {
+  glyph: string
+  landing?: boolean
+  stagger?: number
+  win?: boolean
+  accentHex?: string
+}) {
+  const numeric = isNumericGlyph(glyph)
+  return (
+    <div
+      className={`relative flex h-[4.6rem] items-center justify-center sm:h-[5.6rem] ${
+        landing ? 'animate-slot-land' : ''
+      }`}
+      style={landing ? { animationDelay: `${stagger}s` } : undefined}
+    >
+      <div
+        className={`flex h-[3.9rem] w-[3.9rem] items-center justify-center rounded-xl text-4xl transition-all sm:h-[4.8rem] sm:w-[4.8rem] sm:text-5xl ${
+          win ? 'win-cell' : ''
+        } ${numeric ? 'font-display font-black text-gold-soft' : ''}`}
+        style={{
+          background: win
+            ? `radial-gradient(circle at 50% 30%, ${accentHex}44, rgba(0,0,0,0.35))`
+            : 'linear-gradient(180deg, rgba(255,255,255,0.08), rgba(0,0,0,0.28))',
+          boxShadow: win ? undefined : 'inset 0 1px 0 rgba(255,255,255,0.12), inset 0 -6px 14px rgba(0,0,0,0.45)',
+          textShadow: numeric ? '0 2px 10px rgba(255,194,75,0.6)' : '0 3px 8px rgba(0,0,0,0.55)',
+        }}
+      >
+        {glyph}
+      </div>
+    </div>
+  )
+}
+
 export function SlotMachine({ slot }: { slot: SlotDefinition }) {
   const { t } = useTranslation()
   const isAuthenticated = useSession((s) => Boolean(s.user))
   const balance = useWallet((s) => s.balance)
   const setBalance = useWallet((s) => s.setBalance)
 
-  const glyphs = slot.symbols.map((s) => s.glyph)
+  const glyphs = useMemo(() => slot.symbols.map((s) => s.glyph), [slot])
+  const accentHex = ACCENT_HEX[slot.accent] ?? '#ffc24b'
 
   const [bet, setBet] = useState(BET_PRESETS[1])
-  const [grid, setGrid] = useState<string[][]>(() =>
+  const [columns, setColumns] = useState<string[][]>(() =>
     Array.from({ length: REELS }, () => Array.from({ length: ROWS }, () => glyphs[0])),
   )
-  const [reelStopped, setReelStopped] = useState([true, true, true])
+  const [phases, setPhases] = useState<Phase[]>(['idle', 'idle', 'idle'])
+  const [landKey, setLandKey] = useState(0)
   const [spinning, setSpinning] = useState(false)
+  const [winGlyphs, setWinGlyphs] = useState<Set<string>>(new Set())
   const [winningLineIndexes, setWinningLineIndexes] = useState<number[]>([])
   const [message, setMessage] = useState<{ tier: WinTier; amount: number } | null>(null)
+  const [bigWin, setBigWin] = useState<{ tier: WinTier; amount: number } | null>(null)
   const [sessionBet, setSessionBet] = useState(0)
   const [sessionWin, setSessionWin] = useState(0)
   const [recentSpins, setRecentSpins] = useState<RecentSpin[]>([])
   const [error, setError] = useState<string | null>(null)
 
   const timeouts = useRef<number[]>([])
-  const intervals = useRef<number[]>([])
 
   useEffect(() => {
     return () => {
       timeouts.current.forEach(clearTimeout)
-      intervals.current.forEach(clearInterval)
     }
   }, [])
 
@@ -84,44 +180,26 @@ export function SlotMachine({ slot }: { slot: SlotDefinition }) {
 
   function clearTimers() {
     timeouts.current.forEach(clearTimeout)
-    intervals.current.forEach(clearInterval)
     timeouts.current = []
-    intervals.current = []
   }
 
-  function randGlyph() {
-    return glyphs[Math.floor(Math.random() * glyphs.length)]
-  }
-
-  function startFlicker() {
-    setSpinning(true)
-    setReelStopped([false, false, false])
-    for (let reel = 0; reel < REELS; reel++) {
-      const flicker = window.setInterval(() => {
-        setGrid((prev) => {
-          const next = prev.map((col) => [...col])
-          next[reel] = Array.from({ length: ROWS }, randGlyph)
-          return next
-        })
-      }, FLICKER_INTERVAL)
-      intervals.current.push(flicker)
-    }
-  }
-
-  /** Sequentially stop the reels onto the server's grid, then resolve. */
   function settleTo(res: SpinResponse) {
+    const winSet = new Set(res.result.winningLines.map((w) => w.glyph))
+
     for (let reel = 0; reel < REELS; reel++) {
       const stop = window.setTimeout(() => {
-        setGrid((prev) => {
+        setColumns((prev) => {
           const next = prev.map((col) => [...col])
           next[reel] = res.result.grid[reel]
           return next
         })
-        setReelStopped((prev) => {
+        setPhases((prev) => {
           const next = [...prev]
-          next[reel] = true
+          next[reel] = 'stopped'
           return next
         })
+        setLandKey((k) => k + 1)
+        playSound('spin')
       }, REEL_STOP_DELAYS[reel])
       timeouts.current.push(stop)
     }
@@ -132,14 +210,17 @@ export function SlotMachine({ slot }: { slot: SlotDefinition }) {
       setWinningLineIndexes(res.result.winningLines.map((w) => w.line))
       const { totalWin, tier } = res.result
       if (totalWin > 0) {
+        setWinGlyphs(winSet)
         setSessionWin((v) => v + totalWin)
         setMessage({ tier, amount: totalWin })
         if (tier === 'jackpot') {
-          confettiBurst(180)
+          confettiBurst(220)
           playSound('big')
+          setBigWin({ tier, amount: totalWin })
         } else if (tier === 'big') {
-          confettiBurst(110)
+          confettiBurst(140)
           playSound('big')
+          setBigWin({ tier, amount: totalWin })
         } else {
           playSound('win')
         }
@@ -149,7 +230,7 @@ export function SlotMachine({ slot }: { slot: SlotDefinition }) {
       setRecentSpins((prev) =>
         [{ id: crypto.randomUUID(), amount: totalWin, tier }, ...prev].slice(0, 6),
       )
-    }, REEL_STOP_DELAYS[REELS - 1] + 150)
+    }, REEL_STOP_DELAYS[REELS - 1] + 180)
     timeouts.current.push(finish)
   }
 
@@ -157,6 +238,8 @@ export function SlotMachine({ slot }: { slot: SlotDefinition }) {
     if (spinning) return
     setError(null)
     setMessage(null)
+    setBigWin(null)
+    setWinGlyphs(new Set())
     setWinningLineIndexes([])
 
     if (!isAuthenticated) {
@@ -169,7 +252,10 @@ export function SlotMachine({ slot }: { slot: SlotDefinition }) {
     }
 
     clearTimers()
-    startFlicker()
+    setSpinning(true)
+    setPhases(['spinning', 'spinning', 'spinning'])
+    setLandKey((k) => k + 1)
+    playSound('spin')
     setSessionBet((v) => v + bet)
 
     try {
@@ -178,25 +264,36 @@ export function SlotMachine({ slot }: { slot: SlotDefinition }) {
     } catch (err) {
       clearTimers()
       setSpinning(false)
-      setReelStopped([true, true, true])
+      setPhases(['idle', 'idle', 'idle'])
       setSessionBet((v) => Math.max(0, v - bet))
       setError(errorKey(err instanceof ApiError ? err.code : undefined))
     }
   }
 
   const canSpin = !spinning && bet > 0 && (!isAuthenticated || bet <= balance)
+  const hasWin = winGlyphs.size > 0 && !spinning
 
   return (
     <div className="grid gap-6 lg:grid-cols-[1fr_320px]">
       <div
-        className="relative overflow-hidden rounded-3xl border border-white/10 p-6 sm:p-8"
+        className="relative overflow-hidden rounded-3xl border border-white/10 p-5 sm:p-8"
         style={{ background: `linear-gradient(160deg, ${slot.themeFrom}, ${slot.themeTo})` }}
       >
-        <div className="mb-5 flex items-center justify-between">
+        {/* ambient aurora */}
+        <div
+          className="aurora-layer pointer-events-none absolute -left-1/4 -top-1/3 h-[140%] w-[80%] rounded-full opacity-40 blur-3xl"
+          style={{ background: `radial-gradient(circle, ${accentHex}55, transparent 70%)` }}
+        />
+
+        <div className="relative mb-5 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <span className="text-3xl">{slot.icon}</span>
+            <span className="text-3xl drop-shadow-lg">{slot.icon}</span>
             <div>
-              <h2 className="font-display text-lg font-bold text-white sm:text-xl">{slot.name}</h2>
+              <h2
+                className={`neon-text font-display text-lg font-black tracking-tight sm:text-2xl ${ACCENT_TEXT[slot.accent]}`}
+              >
+                {slot.name}
+              </h2>
               <p className="text-xs text-white/50">
                 {t('slots.rtp')} {slot.rtp}% · {t('slots.paylines')}: {PAYLINE_COUNT}
               </p>
@@ -209,35 +306,54 @@ export function SlotMachine({ slot }: { slot: SlotDefinition }) {
           </span>
         </div>
 
-        <div className="relative rounded-2xl border-4 border-gold/40 bg-black/40 p-3 shadow-glow-gold sm:p-4">
+        {/* Cabinet */}
+        <div className="machine-cabinet relative rounded-2xl border-2 border-gold/50 p-3 sm:p-4">
+          <div
+            className="pointer-events-none absolute inset-x-0 top-1/2 z-20 h-[2px] -translate-y-1/2"
+            style={{ background: `linear-gradient(90deg, transparent, ${accentHex}88, transparent)` }}
+          />
           <div className="grid grid-cols-3 gap-2 sm:gap-3">
             {Array.from({ length: REELS }).map((_, reel) => (
-              <div
+              <Reel
                 key={reel}
-                className={`flex flex-col gap-2 overflow-hidden rounded-xl bg-black/30 p-1.5 sm:gap-3 sm:p-2 ${
-                  !reelStopped[reel] ? 'animate-spin-reel' : ''
-                }`}
-              >
-                {Array.from({ length: ROWS }).map((_, row) => {
-                  const glyph = grid[reel][row]
-                  const isNumeric = /^[0-9]+$/.test(glyph)
-                  return (
-                    <div
-                      key={row}
-                      className={`flex aspect-square items-center justify-center rounded-lg bg-surface-2/80 text-3xl sm:text-4xl ${
-                        isNumeric ? 'font-display font-black text-gold-soft' : ''
-                      }`}
-                    >
-                      {glyph}
-                    </div>
-                  )
-                })}
-              </div>
+                column={columns[reel]}
+                phase={phases[reel]}
+                glyphs={glyphs}
+                landKey={landKey * 10 + reel}
+                winRows={
+                  hasWin ? columns[reel].map((g) => winGlyphs.has(g)) : [false, false, false]
+                }
+                accentHex={accentHex}
+              />
             ))}
           </div>
+
+          {/* Big win overlay */}
+          {bigWin && !spinning && (
+            <div className="absolute inset-0 z-30 grid place-items-center rounded-2xl bg-black/55 backdrop-blur-sm">
+              <div className="animate-bigwin text-center">
+                <div
+                  className={`font-display text-3xl font-black uppercase tracking-tight sm:text-5xl ${
+                    bigWin.tier === 'jackpot' ? 'gold-foil' : 'text-magenta'
+                  }`}
+                >
+                  {bigWin.tier === 'jackpot' ? t('slots.jackpot') : t('slots.bigWin')}
+                </div>
+                <div className="mt-2 font-mono text-2xl font-black text-gold-soft sm:text-4xl">
+                  +{bigWin.amount.toLocaleString('en-US')}
+                </div>
+                <button
+                  onClick={() => setBigWin(null)}
+                  className="mt-4 rounded-full border border-white/20 bg-white/10 px-5 py-1.5 text-xs font-bold uppercase tracking-wide text-white hover:bg-white/20 cursor-pointer"
+                >
+                  {t('common.continue')}
+                </button>
+              </div>
+            </div>
+          )}
         </div>
 
-        <div className="mt-4 flex min-h-[2.5rem] items-center justify-center">
+        <div className="relative mt-4 flex min-h-[2.5rem] items-center justify-center">
           {error && (
             <div className="rounded-xl border border-ruby/40 bg-ruby/10 px-4 py-2 text-center text-sm text-ruby">
               {error === 'loginToPlay' ? (
@@ -261,20 +377,14 @@ export function SlotMachine({ slot }: { slot: SlotDefinition }) {
               )}
             </div>
           )}
-          {!error && message && !spinning && (
+          {!error && message && !spinning && !bigWin && (
             <div
               className={`animate-coin rounded-xl px-5 py-2 text-center font-display font-bold ${
-                message.tier === 'jackpot'
-                  ? 'bg-gold/20 text-gold-soft text-xl shadow-glow-gold'
-                  : message.tier === 'big'
-                    ? 'bg-magenta/20 text-magenta text-lg'
-                    : message.tier === 'win'
-                      ? 'bg-emerald/15 text-emerald'
-                      : 'text-white/35 text-sm font-normal'
+                message.tier === 'win'
+                  ? 'bg-emerald/15 text-emerald'
+                  : 'text-white/35 text-sm font-normal'
               }`}
             >
-              {message.tier === 'jackpot' && `${t('slots.jackpot')} `}
-              {message.tier === 'big' && `${t('slots.bigWin')} `}
               {message.tier !== 'none'
                 ? `+${message.amount.toLocaleString('en-US')} ${t('common.currencyShort')}`
                 : t('slots.noWin')}
@@ -313,7 +423,12 @@ export function SlotMachine({ slot }: { slot: SlotDefinition }) {
             </button>
           </div>
 
-          <Button size="lg" onClick={handleSpin} disabled={!canSpin} className="min-w-[10rem]">
+          <Button
+            size="lg"
+            onClick={handleSpin}
+            disabled={!canSpin}
+            className="sheen relative min-w-[10rem] overflow-hidden"
+          >
             {spinning ? t('slots.spinning') : `🎰 ${t('slots.spin')}`}
           </Button>
         </div>
@@ -338,7 +453,7 @@ export function SlotMachine({ slot }: { slot: SlotDefinition }) {
 
       {/* Side panel */}
       <div className="flex flex-col gap-4">
-        <div className="rounded-2xl border border-white/10 bg-surface p-5">
+        <div className="glass rounded-2xl p-5">
           <div className="mb-4 grid grid-cols-2 gap-3 text-center">
             <div>
               <div className="text-[11px] uppercase tracking-wide text-white/40">

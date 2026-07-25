@@ -12,7 +12,8 @@
     "save": "Save",
     "back": "Back",
     "currency": "credits",
-    "currencyShort": "cr"
+    "currencyShort": "cr",
+    "continue": "Continue"
   },
   "nav": {
     "home": "Home",
