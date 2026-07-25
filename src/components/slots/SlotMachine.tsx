@@ -7,6 +7,7 @@ import { useSession } from '@/store/useSession'
 import { useWallet } from '@/store/useWallet'
 import { Button } from '@/components/ui/Button'
 import { ACCENT_TEXT, ACCENT_HEX } from '@/lib/slotTheme'
+import { SlotSymbol } from '@/components/slots/SlotSymbol'
 import { confettiBurst, playSound } from '@/lib/effects'
 
 const BET_PRESETS = [10, 25, 50, 100, 250, 500]
@@ -47,10 +48,6 @@ function errorKey(code?: string): string {
     default:
       return 'insufficientFunds'
   }
-}
-
-function isNumericGlyph(glyph: string) {
-  return /^[0-9]+$/.test(glyph)
 }
 
 /** A single reel: rolls a blurred strip while spinning, then drops onto the
@@ -117,7 +114,6 @@ function SlotTile({
   win?: boolean
   accentHex?: string
 }) {
-  const numeric = isNumericGlyph(glyph)
   return (
     <div
       className={`relative flex h-[4.6rem] items-center justify-center sm:h-[5.6rem] ${
@@ -126,18 +122,17 @@ function SlotTile({
       style={landing ? { animationDelay: `${stagger}s` } : undefined}
     >
       <div
-        className={`flex h-[3.9rem] w-[3.9rem] items-center justify-center rounded-xl text-4xl transition-all sm:h-[4.8rem] sm:w-[4.8rem] sm:text-5xl ${
+        className={`flex h-[3.9rem] w-[3.9rem] items-center justify-center rounded-xl p-1.5 transition-all sm:h-[4.8rem] sm:w-[4.8rem] ${
           win ? 'win-cell' : ''
-        } ${numeric ? 'font-display font-black text-gold-soft' : ''}`}
+        }`}
         style={{
           background: win
-            ? `radial-gradient(circle at 50% 30%, ${accentHex}44, rgba(0,0,0,0.35))`
-            : 'linear-gradient(180deg, rgba(255,255,255,0.08), rgba(0,0,0,0.28))',
-          boxShadow: win ? undefined : 'inset 0 1px 0 rgba(255,255,255,0.12), inset 0 -6px 14px rgba(0,0,0,0.45)',
-          textShadow: numeric ? '0 2px 10px rgba(255,194,75,0.6)' : '0 3px 8px rgba(0,0,0,0.55)',
+            ? `radial-gradient(circle at 50% 30%, ${accentHex}55, rgba(0,0,0,0.35))`
+            : 'linear-gradient(180deg, rgba(255,255,255,0.06), rgba(0,0,0,0.32))',
+          boxShadow: win ? undefined : 'inset 0 1px 0 rgba(255,255,255,0.1), inset 0 -6px 14px rgba(0,0,0,0.45)',
         }}
       >
-        {glyph}
+        <SlotSymbol name={glyph} className={win ? 'scale-110 transition-transform' : ''} />
       </div>
     </div>
   )
@@ -287,7 +282,9 @@ export function SlotMachine({ slot }: { slot: SlotDefinition }) {
 
         <div className="relative mb-5 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <span className="text-3xl drop-shadow-lg">{slot.icon}</span>
+            <span className="h-11 w-11 drop-shadow-lg">
+              <SlotSymbol name={slot.symbols[slot.symbols.length - 1].glyph} />
+            </span>
             <div>
               <h2
                 className={`neon-text font-display text-lg font-black tracking-tight sm:text-2xl ${ACCENT_TEXT[slot.accent]}`}
