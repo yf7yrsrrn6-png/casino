@@ -1,4 +1,4 @@
-import { existsSync } from 'node:fs'
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { randomBytes } from 'node:crypto'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -14,26 +14,44 @@ if (existsSync(envFile) && typeof process.loadEnvFile === 'function') {
 
 const isProd = process.env.NODE_ENV === 'production'
 
-function requireInProd(name: string, fallback: string): string {
-  const value = process.env[name]
-  if (value) return value
-  if (isProd) {
-    throw new Error(
-      `Missing required environment variable ${name} in production. Set it in your environment or .env file.`,
-    )
-  }
-  return fallback
-}
+const dbPath = process.env.DB_PATH ?? path.join(rootDir, 'data', 'casino.db')
 
-// A stable-per-process dev secret; production MUST provide its own.
+// A stable-per-process dev secret; production provides its own or gets a
+// persisted one generated below.
 const devSecret = randomBytes(32).toString('hex')
+
+/**
+ * Resolve the session-signing secret.
+ * - Explicit JWT_SECRET always wins (recommended for production).
+ * - In dev, use an ephemeral per-process secret.
+ * - In production without JWT_SECRET (zero-config deploys), generate one once
+ *   and persist it next to the database so sessions survive restarts. This
+ *   keeps one-click hosting deploys working without any manual configuration.
+ */
+function resolveJwtSecret(): string {
+  const fromEnv = process.env.JWT_SECRET
+  if (fromEnv) return fromEnv
+  if (!isProd) return devSecret
+  const dataDir = path.dirname(dbPath)
+  const secretFile = path.join(dataDir, '.jwt_secret')
+  try {
+    if (existsSync(secretFile)) return readFileSync(secretFile, 'utf8').trim()
+    mkdirSync(dataDir, { recursive: true })
+    const generated = randomBytes(48).toString('hex')
+    writeFileSync(secretFile, generated, { mode: 0o600 })
+    return generated
+  } catch {
+    // Last resort: an ephemeral secret (sessions reset on restart).
+    return randomBytes(48).toString('hex')
+  }
+}
 
 export const config = {
   isProd,
   port: Number(process.env.PORT ?? 3001),
   rootDir,
-  dbPath: process.env.DB_PATH ?? path.join(rootDir, 'data', 'casino.db'),
-  jwtSecret: requireInProd('JWT_SECRET', devSecret),
+  dbPath,
+  jwtSecret: resolveJwtSecret(),
   jwtExpiresInSeconds: 60 * 60 * 24 * 7, // 7 days
   cookieName: 'tml_session',
   startingBalance: Number(process.env.STARTING_BALANCE ?? 10000),
