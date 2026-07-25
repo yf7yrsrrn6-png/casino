@@ -12,7 +12,7 @@ services:
       ADMIN_EMAILS: ${ADMIN_EMAILS:-}
       REAL_MONEY_ENABLED: "false"
     volumes:
-      - casino-data:/app/data
+      - casino-data:/var/data
     restart: unless-stopped
 
 volumes:

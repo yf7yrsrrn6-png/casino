@@ -22,10 +22,14 @@ COPY --from=build /app/dist ./dist
 COPY server ./server
 COPY tsconfig.json ./
 
-# Persist the SQLite database on a mounted volume.
-RUN mkdir -p /app/data
-VOLUME ["/app/data"]
+# SQLite database directory. Attach a persistent volume at /var/data on your
+# host (Railway Volume, Render disk, or a docker volume — see docker-compose).
+# NOTE: no Dockerfile VOLUME instruction — Railway rejects it; persistence is
+# provided by the platform's volume mounted at this path instead.
+ENV DB_PATH=/var/data/casino.db
+RUN mkdir -p /var/data
 
 EXPOSE 3001
-# JWT_SECRET must be provided at runtime (see .env.example).
+# JWT_SECRET may be provided at runtime. If it is absent in production, the
+# server generates one and persists it next to the database (server/config.ts).
 CMD ["npx", "tsx", "server/index.ts"]
