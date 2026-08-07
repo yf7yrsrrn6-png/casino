@@ -133,11 +133,14 @@ export interface TradeStats {
   equityCurve: { t: number; equity: number; pnl: number }[]
 }
 
+export type PlanKind = 'note' | 'playbook' | 'review'
+
 export interface Plan {
   id: string
   title: string
   content: string
   pinned: boolean
+  kind: PlanKind
   createdAt: number
   updatedAt: number
 }

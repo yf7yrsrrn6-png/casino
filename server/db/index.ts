@@ -137,6 +137,14 @@ const MIGRATIONS: { id: number; name: string; sql: string }[] = [
       CREATE INDEX idx_watchlist_user ON watchlist(user_id, pinned DESC, updated_at DESC);
     `,
   },
+  {
+    id: 4,
+    name: 'plan_kind',
+    sql: `
+      -- Classify knowledge-base pages: free notes, strategy playbooks, or reviews.
+      ALTER TABLE plans ADD COLUMN kind TEXT NOT NULL DEFAULT 'note'; -- note | playbook | review
+    `,
+  },
 ]
 
 db.exec(`CREATE TABLE IF NOT EXISTS schema_migrations (

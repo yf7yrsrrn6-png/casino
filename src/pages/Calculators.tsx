@@ -2,6 +2,7 @@ import { PositionSizeCalc } from '@/components/calculators/PositionSize'
 import { RiskRewardCalc } from '@/components/calculators/RiskReward'
 import { PipLotCalc } from '@/components/calculators/PipLot'
 import { CompoundingCalc } from '@/components/calculators/Compounding'
+import { DrawdownRecoveryCalc } from '@/components/calculators/DrawdownRecovery'
 
 export function Calculators() {
   return (
@@ -15,6 +16,7 @@ export function Calculators() {
         <RiskRewardCalc />
         <PipLotCalc />
         <CompoundingCalc />
+        <DrawdownRecoveryCalc />
       </div>
     </div>
   )

@@ -19,6 +19,7 @@ plansRouter.use(requireAuth)
 const createSchema = z.object({
   title: z.string().trim().min(1).max(120),
   content: z.string().max(50000).optional(),
+  kind: z.enum(['note', 'playbook', 'review']).optional(),
 })
 const updateSchema = z.object({
   title: z.string().trim().min(1).max(120).optional(),
@@ -46,8 +47,8 @@ plansRouter.get(
 plansRouter.post(
   '/',
   handler(async (req, res) => {
-    const { title, content } = parse(createSchema, req.body)
-    res.status(201).json({ plan: serializePlan(createPlan(req.user!.id, title, content)) })
+    const { title, content, kind } = parse(createSchema, req.body)
+    res.status(201).json({ plan: serializePlan(createPlan(req.user!.id, title, content, kind)) })
   }),
 )
 

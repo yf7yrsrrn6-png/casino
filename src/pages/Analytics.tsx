@@ -147,6 +147,26 @@ export function Analytics() {
     return hours
   }, [closed])
 
+  // Monthly P&L (last 12 months with activity).
+  const byMonth = useMemo(() => {
+    const MON = ['січ', 'лют', 'бер', 'кві', 'тра', 'чер', 'лип', 'сер', 'вер', 'жов', 'лис', 'гру']
+    const map = new Map<string, { label: string; net: number; count: number; order: number }>()
+    for (const t of closed) {
+      const d = new Date(t.closedAt ?? t.createdAt)
+      const key = `${d.getFullYear()}-${d.getMonth()}`
+      const g = map.get(key) ?? {
+        label: `${MON[d.getMonth()]} ${String(d.getFullYear()).slice(2)}`,
+        net: 0,
+        count: 0,
+        order: d.getFullYear() * 12 + d.getMonth(),
+      }
+      g.net += net(t)
+      g.count++
+      map.set(key, g)
+    }
+    return [...map.values()].sort((a, b) => a.order - b.order).slice(-12)
+  }, [closed])
+
   if (!loaded) return <PageLoader />
   if (closed.length === 0)
     return (
@@ -202,6 +222,42 @@ export function Analytics() {
             className="h-full bg-loss opacity-60"
             style={{ width: `${(grossLoss / (grossProfit + grossLoss || 1)) * 100}%` }}
           />
+        </div>
+      </Card>
+
+      {/* Monthly P&L */}
+      <Card>
+        <CardHeader title="P&L за місяцями" subtitle="Сумарний результат по кожному місяцю" />
+        <div className="flex h-56 items-stretch gap-2 px-5 py-4">
+          {(() => {
+            const maxAbs = Math.max(1, ...byMonth.map((m) => Math.abs(m.net)))
+            return byMonth.map((m) => {
+              const pos = m.net >= 0
+              const barPct = (Math.abs(m.net) / maxAbs) * 100
+              return (
+                <div key={m.label} className="flex flex-1 flex-col items-center" title={`${money(m.net, currency, true)} · ${m.count} угод`}>
+                  <div className="flex w-full flex-1 flex-col justify-end">
+                    <span className={`mb-1 text-center text-[11px] font-semibold tnum ${pos ? 'text-profit' : 'text-transparent'}`}>
+                      {pos ? money(m.net, currency, true) : ''}
+                    </span>
+                    {pos && (
+                      <div className="w-full rounded-t-md bg-profit" style={{ height: `${barPct / 2}%`, minHeight: 3, opacity: 0.9 }} />
+                    )}
+                  </div>
+                  <div className="h-px w-full bg-border" />
+                  <div className="flex w-full flex-1 flex-col">
+                    {!pos && (
+                      <div className="w-full rounded-b-md bg-loss" style={{ height: `${barPct / 2}%`, minHeight: 3, opacity: 0.55 }} />
+                    )}
+                    <span className={`mt-1 text-center text-[11px] font-semibold tnum ${!pos ? 'text-loss' : 'text-transparent'}`}>
+                      {!pos ? money(m.net, currency, true) : ''}
+                    </span>
+                  </div>
+                  <span className="mt-1 text-center text-[10px] text-subtle">{m.label}</span>
+                </div>
+              )
+            })
+          })()}
         </div>
       </Card>
 

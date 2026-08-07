@@ -1,12 +1,15 @@
 import { randomUUID } from 'node:crypto'
 import { db, now } from '../db/index.ts'
 
+export type PlanKind = 'note' | 'playbook' | 'review'
+
 export interface PlanRow {
   id: string
   user_id: string
   title: string
   content: string
   pinned: number
+  kind: string
   created_at: number
   updated_at: number
 }
@@ -17,6 +20,7 @@ export function serializePlan(row: PlanRow) {
     title: row.title,
     content: row.content,
     pinned: row.pinned === 1,
+    kind: (row.kind ?? 'note') as PlanKind,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   }
@@ -34,12 +38,17 @@ export function getPlan(userId: string, id: string): PlanRow | undefined {
     | undefined
 }
 
-export function createPlan(userId: string, title: string, content = ''): PlanRow {
+export function createPlan(
+  userId: string,
+  title: string,
+  content = '',
+  kind: PlanKind = 'note',
+): PlanRow {
   const id = randomUUID()
   const ts = now()
   db.prepare(
-    'INSERT INTO plans (id, user_id, title, content, pinned, created_at, updated_at) VALUES (?, ?, ?, ?, 0, ?, ?)',
-  ).run(id, userId, title.trim() || 'Untitled plan', content, ts, ts)
+    'INSERT INTO plans (id, user_id, title, content, pinned, kind, created_at, updated_at) VALUES (?, ?, ?, ?, 0, ?, ?, ?)',
+  ).run(id, userId, title.trim() || 'Untitled', content, kind, ts, ts)
   return getPlan(userId, id)!
 }
 

@@ -297,6 +297,20 @@ export const IconRedo = (p: IconProps) => (
   </Base>
 )
 
+export const IconDownload = (p: IconProps) => (
+  <Base {...p}>
+    <path d="M12 3v12M7 10l5 5 5-5" />
+    <path d="M5 21h14" />
+  </Base>
+)
+
+export const IconKeyboard = (p: IconProps) => (
+  <Base {...p}>
+    <rect x="2" y="6" width="20" height="12" rx="2" />
+    <path d="M6 10h.01M10 10h.01M14 10h.01M18 10h.01M8 14h8" />
+  </Base>
+)
+
 export const IconDraw = (p: IconProps) => (
   <Base {...p}>
     <path d="M12 19l7-7 3 3-7 7-3-3z" />

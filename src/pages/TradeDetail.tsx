@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
-import { api, type Trade, type TradeImage } from '@/lib/api'
+import { api, type Trade, type TradeImage, type Plan } from '@/lib/api'
 import { useTrades } from '@/store/useTrades'
 import { useSettings } from '@/store/useSettings'
 import { Button } from '@/components/ui/Button'
@@ -8,7 +8,15 @@ import { Card } from '@/components/ui/Card'
 import { DirectionBadge, StatusBadge, PnL, RValue } from '@/components/ui/Badge'
 import { PageLoader, EmptyState, ConfirmDialog } from '@/components/ui/Feedback'
 import { ImageUploader } from '@/components/media/ImageUploader'
-import { IconEdit, IconTrash, IconChevronRight, IconStar, IconCheck } from '@/components/ui/icons'
+import {
+  IconEdit,
+  IconTrash,
+  IconChevronRight,
+  IconStar,
+  IconCheck,
+  IconArrowLeft,
+  IconArrowRight,
+} from '@/components/ui/icons'
 import { price, num, money, formatDateTime } from '@/lib/format'
 
 function Detail({ label, value }: { label: string; value: React.ReactNode }) {
@@ -33,6 +41,7 @@ export function TradeDetail() {
   const [loading, setLoading] = useState(true)
   const [missing, setMissing] = useState(false)
   const [confirm, setConfirm] = useState(false)
+  const [playbook, setPlaybook] = useState<Plan | null>(null)
 
   useEffect(() => {
     if (!id) return
@@ -53,6 +62,24 @@ export function TradeDetail() {
     const fresh = storeTrades.find((t) => t.id === id)
     if (fresh) setTrade(fresh)
   }, [storeTrades, id])
+
+  // Link a matching playbook by setup name.
+  useEffect(() => {
+    const setup = trade?.setup?.trim().toLowerCase()
+    if (!setup) {
+      setPlaybook(null)
+      return
+    }
+    api
+      .get<{ plans: Plan[] }>('/plans')
+      .then(({ plans }) => {
+        const match = plans.find(
+          (p) => p.kind === 'playbook' && p.title.trim().toLowerCase() === setup,
+        )
+        setPlaybook(match ?? null)
+      })
+      .catch(() => setPlaybook(null))
+  }, [trade?.setup])
 
   if (loading) return <PageLoader />
   if (missing || !trade)
@@ -84,6 +111,11 @@ export function TradeDetail() {
     ? Math.round((checklistDone / trade.checklist.length) * 100)
     : null
 
+  // Prev/next within the journal order.
+  const idx = storeTrades.findIndex((t) => t.id === id)
+  const prevId = idx > 0 ? storeTrades[idx - 1].id : null
+  const nextId = idx >= 0 && idx < storeTrades.length - 1 ? storeTrades[idx + 1].id : null
+
   return (
     <div className="space-y-5">
       {/* Breadcrumb + actions */}
@@ -96,6 +128,24 @@ export function TradeDetail() {
           <span className="font-medium text-text">{trade.symbol}</span>
         </div>
         <div className="flex items-center gap-2">
+          <div className="mr-1 flex items-center gap-1">
+            <button
+              onClick={() => prevId && navigate(`/journal/${prevId}`)}
+              disabled={!prevId}
+              className="grid h-8 w-8 place-items-center rounded-lg border border-border text-muted hover:text-text disabled:opacity-40"
+              title="Попередня"
+            >
+              <IconArrowLeft width={15} height={15} />
+            </button>
+            <button
+              onClick={() => nextId && navigate(`/journal/${nextId}`)}
+              disabled={!nextId}
+              className="grid h-8 w-8 place-items-center rounded-lg border border-border text-muted hover:text-text disabled:opacity-40"
+              title="Наступна"
+            >
+              <IconArrowRight width={15} height={15} />
+            </button>
+          </div>
           <Button variant="secondary" size="sm" onClick={() => openEditor(trade)}>
             <IconEdit width={15} height={15} /> Редагувати
           </Button>
@@ -165,7 +215,17 @@ export function TradeDetail() {
           <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
             <div>
               <div className="text-[12px] text-subtle">Сетап</div>
-              <div className="mt-0.5 text-[14px] font-medium text-text">{trade.setup ?? '—'}</div>
+              {playbook ? (
+                <Link
+                  to={`/plans/${playbook.id}`}
+                  className="mt-0.5 inline-flex items-center gap-1 text-[14px] font-medium text-accent hover:underline"
+                >
+                  {trade.setup}
+                  <IconChevronRight width={13} height={13} />
+                </Link>
+              ) : (
+                <div className="mt-0.5 text-[14px] font-medium text-text">{trade.setup ?? '—'}</div>
+              )}
             </div>
             <div>
               <div className="text-[12px] text-subtle">Сесія</div>

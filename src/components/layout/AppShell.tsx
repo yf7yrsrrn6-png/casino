@@ -1,5 +1,5 @@
-import { useState, type ReactNode } from 'react'
-import { NavLink, useLocation } from 'react-router-dom'
+import { useEffect, useState, type ReactNode } from 'react'
+import { NavLink, useLocation, useNavigate } from 'react-router-dom'
 import { Logo } from './Logo'
 import { Button } from '@/components/ui/Button'
 import {
@@ -170,11 +170,55 @@ function SidebarFooter() {
   )
 }
 
+const NAV_KEYS: Record<string, string> = {
+  d: '/',
+  j: '/journal',
+  a: '/analytics',
+  w: '/watchlist',
+  p: '/plans',
+  c: '/calculators',
+}
+
 export function AppShell({ children }: { children: ReactNode }) {
   const [mobileOpen, setMobileOpen] = useState(false)
   const location = useLocation()
+  const navigate = useNavigate()
   const openEditor = useTrades((s) => s.openEditor)
+  const editorOpen = useTrades((s) => s.editorOpen)
   const title = PAGE_TITLES[location.pathname] ?? ''
+
+  // Global keyboard shortcuts: N = new position, G+<key> = navigate.
+  useEffect(() => {
+    let awaitingGoto = false
+    let gotoTimer: ReturnType<typeof setTimeout> | undefined
+    function onKey(e: KeyboardEvent) {
+      const el = e.target as HTMLElement | null
+      const typing =
+        el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.isContentEditable)
+      if (typing || e.metaKey || e.ctrlKey || e.altKey) return
+      const key = e.key.toLowerCase()
+      if (awaitingGoto) {
+        awaitingGoto = false
+        clearTimeout(gotoTimer)
+        if (NAV_KEYS[key]) {
+          e.preventDefault()
+          navigate(NAV_KEYS[key])
+        }
+        return
+      }
+      if (key === 'g') {
+        awaitingGoto = true
+        gotoTimer = setTimeout(() => (awaitingGoto = false), 900)
+        return
+      }
+      if (key === 'n' && !editorOpen) {
+        e.preventDefault()
+        openEditor()
+      }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [navigate, openEditor, editorOpen])
 
   return (
     <div className="min-h-svh">

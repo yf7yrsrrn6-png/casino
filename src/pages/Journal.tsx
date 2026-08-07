@@ -15,7 +15,9 @@ import {
   IconBoard,
   IconGallery,
   IconCalendar,
+  IconDownload,
 } from '@/components/ui/icons'
+import { downloadCsv } from '@/lib/csv'
 import { TableView } from '@/components/journal/TableView'
 import { BoardView } from '@/components/journal/BoardView'
 import { GalleryView } from '@/components/journal/GalleryView'
@@ -94,21 +96,34 @@ export function Journal() {
             </button>
           ))}
         </div>
-        {showFilters && (
-          <div className="relative sm:w-64">
-            <IconSearch
-              width={16}
-              height={16}
-              className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-subtle"
-            />
-            <Input
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder="Пошук за інструментом / сетапом"
-              className="pl-9"
-            />
-          </div>
-        )}
+        <div className="flex items-center gap-2">
+          {showFilters && (
+            <div className="relative sm:w-64">
+              <IconSearch
+                width={16}
+                height={16}
+                className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-subtle"
+              />
+              <Input
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder="Пошук за інструментом / сетапом"
+                className="pl-9"
+              />
+            </div>
+          )}
+          {trades.length > 0 && (
+            <Button
+              variant="secondary"
+              size="md"
+              onClick={() => downloadCsv(trades)}
+              title="Експорт у CSV"
+            >
+              <IconDownload width={16} height={16} />
+              <span className="hidden sm:inline">CSV</span>
+            </Button>
+          )}
+        </div>
       </div>
 
       {/* Status filter pills */}
