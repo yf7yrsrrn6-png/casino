@@ -1,425 +1,253 @@
-@import "tailwindcss";
+@import 'tailwindcss';
 
-@theme {
-  --font-display: "Unbounded", "Manrope", system-ui, sans-serif;
-  --font-sans: "Manrope", system-ui, "Segoe UI", Roboto, sans-serif;
+/* ============================================================
+   OBSIDIAN — a black, terminal-grade design system.
+   Palette: near-black surfaces · white type · a single restrained
+   blue accent (echoing the reference chart). No green anywhere.
+   Dark is the default; a light variant is available via data-theme.
+   ============================================================ */
+:root {
+  --bg: #060708;
+  --bg-elev: #0a0c0e;
+  --surface: #0d0f12;
+  --surface-2: #14171b;
+  --surface-3: #1b1f24;
+  --border: #1c2027;
+  --border-strong: #2a2f37;
 
-  --color-ink: #0e0724;
-  --color-surface: #1a0f38;
-  --color-surface-2: #1c0d3a;
-  --color-surface-3: #2a1550;
-  --color-border: #362a5c;
+  --text: #f4f5f6;
+  --text-muted: #9aa0a8;
+  --text-subtle: #616770;
 
-  --color-gold: #ffc24b;
-  --color-gold-soft: #ffda85;
-  --color-gold-dark: #c98a2e;
+  /* Monochrome accent — white on black. No colour anywhere. */
+  --accent: #ffffff;
+  --accent-hover: #e7e7e9;
+  --accent-soft: rgba(255, 255, 255, 0.09);
+  --accent-line: rgba(255, 255, 255, 0.22);
+  --accent-fg: #0a0b0d;
 
-  --color-magenta: #ff3d8b;
-  --color-violet: #a855f7;
-  --color-emerald: #3bd07a;
-  --color-ruby: #e0203f;
-  --color-azure: #2e9dff;
+  /* High-contrast primary action (white on black). */
+  --primary: #ffffff;
+  --primary-fg: #0a0b0d;
 
-  --color-lilac: #c9baec;
-  --color-mist: #9683be;
-  --color-dusk: #6e5f94;
+  /* P&L semantics in grayscale: gains read bright white, losses dim.
+     Direction/sign arrows and +/− carry the meaning, not colour. */
+  --profit: #ffffff;
+  --profit-soft: rgba(255, 255, 255, 0.1);
+  --loss: #7f858e;
+  --loss-soft: rgba(255, 255, 255, 0.045);
+  --warn: #c7ccd3;
 
-  --shadow-glow-gold: 0 0 24px rgba(255, 194, 75, 0.35);
-  --shadow-glow-violet: 0 0 30px rgba(168, 85, 247, 0.35);
-  --shadow-glow-magenta: 0 0 30px rgba(255, 61, 139, 0.4);
+  --ring: rgba(255, 255, 255, 0.28);
+  --glow: 0 0 0 1px var(--accent-line), 0 8px 34px -10px rgba(255, 255, 255, 0.18);
 
-  --animate-spin-reel: spin-reel 0.15s linear infinite;
-  --animate-float: floaty 6s ease-in-out infinite;
-  --animate-shimmer: shimmer 2.4s linear infinite;
-  --animate-coin: coin-pop 0.6s ease-out;
-  --animate-glow-pulse: glowpulse 4s ease-in-out infinite;
-  --animate-marquee: marquee 28s linear infinite;
-  --animate-blink: blink 1.4s infinite;
-  --animate-sparkle: sparkle 2.4s ease-in-out infinite;
-  --animate-bg-shift: bgshift 8s ease-in-out infinite;
-  --animate-spin-pulse: spinpulse 2.4s ease-in-out infinite;
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.02);
+  --shadow-md: 0 10px 30px -12px rgba(0, 0, 0, 0.7), inset 0 1px 0 rgba(255, 255, 255, 0.03);
+  --shadow-lg: 0 30px 70px -24px rgba(0, 0, 0, 0.85), inset 0 1px 0 rgba(255, 255, 255, 0.04);
+
+  --grid-line: rgba(255, 255, 255, 0.035);
 }
 
-@keyframes spin-reel {
-  from {
-    transform: translateY(0);
-  }
-  to {
-    transform: translateY(-25%);
-  }
+[data-theme='light'] {
+  --bg: #f5f6f8;
+  --bg-elev: #ffffff;
+  --surface: #ffffff;
+  --surface-2: #eef1f5;
+  --surface-3: #e4e8ee;
+  --border: #e3e7ec;
+  --border-strong: #d2d8e0;
+
+  --text: #0b0c0e;
+  --text-muted: #5c636d;
+  --text-subtle: #8b929c;
+
+  --accent: #0b0c0e;
+  --accent-hover: #26282c;
+  --accent-soft: rgba(11, 12, 14, 0.06);
+  --accent-line: rgba(11, 12, 14, 0.18);
+  --accent-fg: #ffffff;
+
+  --primary: #0b0c0e;
+  --primary-fg: #ffffff;
+
+  --profit: #0b0c0e;
+  --profit-soft: rgba(11, 12, 14, 0.06);
+  --loss: #9aa0a8;
+  --loss-soft: rgba(11, 12, 14, 0.035);
+  --warn: #6b7078;
+
+  --ring: rgba(11, 12, 14, 0.22);
+  --glow: 0 0 0 1px var(--accent-line), 0 8px 30px -12px rgba(11, 12, 14, 0.22);
+
+  --shadow-sm: 0 1px 2px rgba(16, 22, 35, 0.06);
+  --shadow-md: 0 8px 24px -12px rgba(16, 22, 35, 0.18);
+  --shadow-lg: 0 24px 60px -24px rgba(16, 22, 35, 0.26);
+
+  --grid-line: rgba(15, 21, 32, 0.04);
 }
 
-@keyframes floaty {
-  0%,
-  100% {
-    transform: translateY(0) rotate(-4deg);
-  }
-  50% {
-    transform: translateY(-16px) rotate(4deg);
-  }
-}
+@theme inline {
+  --font-sans:
+    'Inter', -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', Roboto, sans-serif;
 
-@keyframes shimmer {
-  0% {
-    background-position: -200% 0;
-  }
-  100% {
-    background-position: 200% 0;
-  }
-}
+  --color-bg: var(--bg);
+  --color-bg-elev: var(--bg-elev);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-surface-3: var(--surface-3);
+  --color-border: var(--border);
+  --color-border-strong: var(--border-strong);
 
-@keyframes coin-pop {
-  0% {
-    transform: scale(0.6) translateY(10px);
-    opacity: 0;
-  }
-  60% {
-    transform: scale(1.08) translateY(-4px);
-    opacity: 1;
-  }
-  100% {
-    transform: scale(1) translateY(0);
-    opacity: 1;
-  }
-}
+  --color-text: var(--text);
+  --color-muted: var(--text-muted);
+  --color-subtle: var(--text-subtle);
 
-@keyframes glowpulse {
-  0%,
-  100% {
-    box-shadow: 0 0 40px rgba(255, 61, 139, 0.35), 0 0 90px rgba(168, 85, 247, 0.28);
-  }
-  50% {
-    box-shadow: 0 0 75px rgba(255, 194, 75, 0.45), 0 0 140px rgba(255, 61, 139, 0.35);
-  }
-}
+  --color-accent: var(--accent);
+  --color-accent-hover: var(--accent-hover);
+  --color-accent-soft: var(--accent-soft);
+  --color-accent-fg: var(--accent-fg);
 
-@keyframes marquee {
-  0% {
-    transform: translateX(0);
-  }
-  100% {
-    transform: translateX(-50%);
-  }
-}
+  --color-primary: var(--primary);
+  --color-primary-fg: var(--primary-fg);
 
-@keyframes blink {
-  0%,
-  100% {
-    opacity: 1;
-  }
-  50% {
-    opacity: 0.3;
-  }
-}
-
-@keyframes sparkle {
-  0%,
-  100% {
-    opacity: 0.25;
-    transform: scale(0.7);
-  }
-  50% {
-    opacity: 1;
-    transform: scale(1.35);
-  }
-}
-
-@keyframes bgshift {
-  0%,
-  100% {
-    background-position: 0% 50%;
-  }
-  50% {
-    background-position: 100% 50%;
-  }
-}
-
-@keyframes spinpulse {
-  0%,
-  100% {
-    transform: scale(1);
-  }
-  50% {
-    transform: scale(1.04);
-  }
+  --color-profit: var(--profit);
+  --color-profit-soft: var(--profit-soft);
+  --color-loss: var(--loss);
+  --color-loss-soft: var(--loss-soft);
+  --color-warn: var(--warn);
 }
 
 html {
-  color-scheme: dark;
+  background: var(--bg);
 }
 
 body {
   margin: 0;
   min-height: 100svh;
   font-family: var(--font-sans);
+  color: var(--text);
   background:
-    radial-gradient(900px 620px at 12% -8%, rgba(168, 85, 247, 0.28), transparent 60%),
-    radial-gradient(1000px 700px at 92% 2%, rgba(255, 61, 139, 0.22), transparent 60%),
-    radial-gradient(820px 820px at 50% 118%, rgba(255, 194, 75, 0.12), transparent 60%),
-    var(--color-ink);
-  color: #f3ecff;
+    radial-gradient(1100px 520px at 50% -260px, rgba(255, 255, 255, 0.05), transparent 70%),
+    var(--bg);
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
+  letter-spacing: -0.011em;
 }
 
 #root {
   min-height: 100svh;
-  display: flex;
-  flex-direction: column;
+}
+
+.tnum {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: 'tnum';
 }
 
 ::selection {
-  background: rgba(255, 61, 139, 0.4);
+  background: var(--accent-soft);
+  color: var(--text);
 }
 
 ::-webkit-scrollbar {
-  width: 10px;
-  height: 10px;
+  width: 11px;
+  height: 11px;
 }
 ::-webkit-scrollbar-track {
-  background: var(--color-ink);
+  background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: var(--color-surface-3);
+  background: var(--border-strong);
   border-radius: 999px;
+  border: 3px solid transparent;
+  background-clip: content-box;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: var(--color-gold-dark);
+  background: var(--text-subtle);
+  background-clip: content-box;
 }
 
-.text-gradient-gold {
-  background: linear-gradient(120deg, var(--color-gold-soft), var(--color-magenta) 55%, var(--color-violet));
+.focus-ring:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px var(--ring);
+}
+
+/* ---- Reusable surfaces ---------------------------------------------- */
+
+/* Elevated card: hairline border, faint top highlight, layered shadow. */
+.surface-card {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.018), transparent 40%),
+    var(--surface);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-sm);
+}
+
+.hairline {
+  border-color: var(--border);
+}
+
+/* Gradient heading (bright → muted) for hero figures. */
+.text-hero {
+  background: linear-gradient(180deg, var(--text) 20%, var(--text-muted));
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
 }
 
-.card-felt {
-  background:
-    radial-gradient(120% 140% at 50% -20%, rgba(59, 208, 122, 0.25), transparent 60%),
-    linear-gradient(180deg, #0e2d22, #0a1f19);
+.accent-glow {
+  box-shadow: var(--glow);
 }
 
-.shimmer-bg {
-  background: linear-gradient(
-    100deg,
-    rgba(255, 255, 255, 0) 30%,
-    rgba(255, 255, 255, 0.25) 45%,
-    rgba(255, 255, 255, 0) 60%
-  );
-  background-size: 200% 100%;
+/* Subtle dotted grid backdrop for hero/empty areas. */
+.grid-bg {
+  background-image: radial-gradient(var(--grid-line) 1px, transparent 1px);
+  background-size: 22px 22px;
 }
 
-.bg-shift-gradient {
-  background: linear-gradient(120deg, var(--color-gold), var(--color-magenta) 50%, var(--color-violet));
-  background-size: 200% 200%;
-}
-
-/* ============================================================
-   Premium slot machine + casino atmosphere
-   ============================================================ */
-
-/* Cinematic reel landing: symbols drop in with an overshoot bounce. */
-@keyframes slot-land {
-  0% {
-    transform: translateY(-42%) scale(0.94);
-    filter: blur(4px);
+/* ---- Animations ------------------------------------------------------ */
+@keyframes fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
   }
-  55% {
-    transform: translateY(7%) scale(1.04);
-    filter: blur(0);
-  }
-  75% {
-    transform: translateY(-3%) scale(0.99);
-  }
-  100% {
-    transform: translateY(0) scale(1);
-    filter: blur(0);
-  }
-}
-.animate-slot-land {
-  animation: slot-land 0.42s cubic-bezier(0.18, 0.9, 0.3, 1.15) both;
-}
-
-/* Winning cell: gold frame breathing + gentle lift. */
-@keyframes win-pulse {
-  0%,
-  100% {
-    box-shadow: 0 0 0 2px rgba(255, 194, 75, 0.9), 0 0 22px rgba(255, 194, 75, 0.55);
-    transform: scale(1);
-  }
-  50% {
-    box-shadow: 0 0 0 3px rgba(255, 218, 133, 1), 0 0 40px rgba(255, 194, 75, 0.85);
-    transform: scale(1.06);
-  }
-}
-.win-cell {
-  animation: win-pulse 0.9s ease-in-out infinite;
-  z-index: 2;
-}
-
-/* Fast blur while a reel is still spinning. */
-.reel-spinning {
-  filter: blur(1.5px);
-}
-@keyframes reel-roll {
-  0% {
+  to {
+    opacity: 1;
     transform: translateY(0);
   }
-  100% {
-    transform: translateY(-33.333%);
-  }
 }
-.reel-rolling {
-  animation: reel-roll 0.14s linear infinite;
+.animate-fade-in {
+  animation: fade-in 0.22s ease-out both;
 }
 
-/* Neon marquee flicker for the machine header. */
-@keyframes neon-flicker {
-  0%,
-  100% {
-    opacity: 1;
-    text-shadow: 0 0 6px currentColor, 0 0 18px currentColor;
-  }
-  47% {
-    opacity: 1;
-  }
-  48% {
-    opacity: 0.55;
-  }
-  49% {
-    opacity: 1;
-  }
-  92% {
-    opacity: 0.8;
-  }
-}
-.neon-text {
-  animation: neon-flicker 4.5s infinite;
-}
-
-/* Slow aurora drift for premium backgrounds. */
-@keyframes aurora {
-  0%,
-  100% {
-    transform: translate3d(0, 0, 0) rotate(0deg);
-    opacity: 0.7;
-  }
-  50% {
-    transform: translate3d(3%, -4%, 0) rotate(8deg);
-    opacity: 1;
-  }
-}
-.aurora-layer {
-  animation: aurora 16s ease-in-out infinite;
-}
-
-/* Sweeping light sheen across a surface (buttons, cards, frames). */
-@keyframes sheen-sweep {
-  0% {
-    transform: translateX(-140%) skewX(-18deg);
-  }
-  100% {
-    transform: translateX(240%) skewX(-18deg);
-  }
-}
-.sheen::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(
-    100deg,
-    transparent 30%,
-    rgba(255, 255, 255, 0.22) 48%,
-    transparent 62%
-  );
-  transform: translateX(-140%) skewX(-18deg);
-  pointer-events: none;
-}
-.sheen:hover::after {
-  animation: sheen-sweep 0.9s ease;
-}
-
-/* Big-win overlay entrance. */
-@keyframes bigwin-in {
-  0% {
-    transform: scale(0.4) rotate(-8deg);
+@keyframes overlay-in {
+  from {
     opacity: 0;
   }
-  60% {
-    transform: scale(1.12) rotate(3deg);
-    opacity: 1;
-  }
-  100% {
-    transform: scale(1) rotate(0deg);
+  to {
     opacity: 1;
   }
 }
-.animate-bigwin {
-  animation: bigwin-in 0.6s cubic-bezier(0.2, 0.8, 0.3, 1.2) both;
-}
-
-@keyframes rise-fade {
-  0% {
+@keyframes sheet-in {
+  from {
+    opacity: 0;
+    transform: translateY(14px) scale(0.985);
+  }
+  to {
+    opacity: 1;
     transform: translateY(0) scale(1);
-    opacity: 0;
-  }
-  15% {
-    opacity: 1;
-  }
-  100% {
-    transform: translateY(-90px) scale(1.4);
-    opacity: 0;
   }
 }
-
-/* Metallic gold foil text (headings, big numbers). */
-.gold-foil {
-  background: linear-gradient(
-    180deg,
-    #fff3cf 0%,
-    #ffd873 22%,
-    #f4b32e 48%,
-    #b9781f 62%,
-    #ffe08a 82%,
-    #fff6d8 100%
-  );
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
-  filter: drop-shadow(0 1px 0 rgba(0, 0, 0, 0.35));
+.animate-overlay {
+  animation: overlay-in 0.18s ease-out both;
 }
-
-/* Glassmorphism panel. */
-.glass {
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.07), rgba(255, 255, 255, 0.02));
-  backdrop-filter: blur(14px) saturate(1.3);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-}
-
-/* Slot machine cabinet: brushed metal + gold trim. */
-.machine-cabinet {
-  background:
-    radial-gradient(120% 90% at 50% -10%, rgba(255, 255, 255, 0.12), transparent 55%),
-    linear-gradient(180deg, rgba(0, 0, 0, 0.45), rgba(0, 0, 0, 0.72));
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.18),
-    inset 0 0 40px rgba(0, 0, 0, 0.6),
-    0 24px 60px -20px rgba(0, 0, 0, 0.8);
-}
-
-.reel-glass {
-  background:
-    linear-gradient(180deg, rgba(0, 0, 0, 0.55) 0%, transparent 22%, transparent 78%, rgba(0, 0, 0, 0.55) 100%);
+.animate-sheet {
+  animation: sheet-in 0.24s cubic-bezier(0.2, 0.8, 0.3, 1) both;
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .animate-slot-land,
-  .win-cell,
-  .reel-rolling,
-  .neon-text,
-  .aurora-layer,
-  .animate-bigwin {
+  .animate-fade-in,
+  .animate-overlay,
+  .animate-sheet {
     animation: none !important;
   }
 }

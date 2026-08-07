@@ -1,22 +1,20 @@
-# One-click deploy for TakeMyLucky (full app: SPA + API + WebSocket + SQLite).
+# One-click deploy for Trading Journal (SPA + API + SQLite in one service).
 # In Render: New → Blueprint → connect this repo → Apply.
-# The whole platform runs as a single web service; the Node server serves the
-# built SPA, the REST API, and the realtime WebSocket. SQLite lives on a
-# persistent disk so accounts and balances survive restarts and redeploys.
+# The Node server serves the built SPA and the REST API. SQLite and uploaded
+# chart images live on a persistent disk so your journal survives redeploys.
 services:
   - type: web
-    name: takemylucky
+    name: trading-journal
     runtime: node
     plan: free
-    branch: claude/casino-site-demo-nnungs
+    branch: claude/trading-platform-mac-puadcu
     # Install dev deps too (vite/tsc/tsx live there) so the build can run.
     buildCommand: npm install --include=dev && npm run build
-    # Seed demo accounts (idempotent) then start the production server.
-    startCommand: sh -c "npm run seed || true; npm start"
+    startCommand: npm start
     healthCheckPath: /api/health
     autoDeploy: true
     disk:
-      name: takemylucky-data
+      name: trading-journal-data
       mountPath: /var/data
       sizeGB: 1
     envVars:
@@ -27,13 +25,9 @@ services:
       # Strong random session secret, generated once by Render and kept stable.
       - key: JWT_SECRET
         generateValue: true
-      # SQLite database file on the persistent disk.
-      - key: DB_PATH
-        value: /var/data/casino.db
-      # Real-money cashier stays OFF. Demo credits only. A licensed operator
-      # wires a real payment/KYC provider and flips this to true at go-live.
-      - key: REAL_MONEY_ENABLED
+      # DB + uploaded images live on the persistent disk.
+      - key: DATA_DIR
+        value: /var/data
+      # Personal journal: registration closes after the first account.
+      - key: OPEN_REGISTRATION
         value: "false"
-      # Optional: comma-separated emails auto-granted admin. Set your own here.
-      - key: ADMIN_EMAILS
-        value: ""

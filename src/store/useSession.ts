@@ -4,17 +4,14 @@ import { api, ApiError, type ApiUser } from '@/lib/api'
 interface SessionState {
   user: ApiUser | null
   ready: boolean // true once the initial /me check has completed
+  needsSetup: boolean // true when no account exists yet (first run)
   bootstrap: () => Promise<void>
   register: (
     email: string,
     password: string,
     displayName?: string,
   ) => Promise<{ ok: boolean; error?: string }>
-  login: (
-    email: string,
-    password: string,
-    totp?: string,
-  ) => Promise<{ ok: boolean; error?: string; twoFactorRequired?: boolean }>
+  login: (email: string, password: string) => Promise<{ ok: boolean; error?: string }>
   logout: () => Promise<void>
   setUser: (user: ApiUser | null) => void
 }
@@ -22,13 +19,20 @@ interface SessionState {
 export const useSession = create<SessionState>((set) => ({
   user: null,
   ready: false,
+  needsSetup: false,
 
   bootstrap: async () => {
     try {
       const { user } = await api.get<{ user: ApiUser }>('/auth/me')
       set({ user, ready: true })
     } catch {
-      set({ user: null, ready: true })
+      // Not logged in — figure out whether this is a first-run setup.
+      try {
+        const status = await api.get<{ needsSetup: boolean }>('/auth/status')
+        set({ user: null, ready: true, needsSetup: status.needsSetup })
+      } catch {
+        set({ user: null, ready: true })
+      }
     }
   },
 
@@ -39,24 +43,17 @@ export const useSession = create<SessionState>((set) => ({
         password,
         displayName,
       })
-      set({ user })
+      set({ user, needsSetup: false })
       return { ok: true }
     } catch (err) {
       return { ok: false, error: err instanceof ApiError ? err.code : 'request_failed' }
     }
   },
 
-  login: async (email, password, totp) => {
+  login: async (email, password) => {
     try {
-      const resp = await api.post<{ user?: ApiUser; twoFactorRequired?: boolean }>('/auth/login', {
-        email,
-        password,
-        totp,
-      })
-      if (resp.twoFactorRequired && !resp.user) {
-        return { ok: false, twoFactorRequired: true }
-      }
-      set({ user: resp.user })
+      const { user } = await api.post<{ user: ApiUser }>('/auth/login', { email, password })
+      set({ user })
       return { ok: true }
     } catch (err) {
       return { ok: false, error: err instanceof ApiError ? err.code : 'request_failed' }

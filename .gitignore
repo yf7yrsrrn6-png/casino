@@ -17,6 +17,8 @@ dist-ssr
 data/*.db
 data/*.db-wal
 data/*.db-shm
+data/uploads/
+data/.jwt_secret
 
 # Editor directories and files
 .vscode/*

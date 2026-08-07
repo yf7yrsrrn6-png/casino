@@ -14,7 +14,9 @@ if (existsSync(envFile) && typeof process.loadEnvFile === 'function') {
 
 const isProd = process.env.NODE_ENV === 'production'
 
-const dbPath = process.env.DB_PATH ?? path.join(rootDir, 'data', 'casino.db')
+const dataDir = process.env.DATA_DIR ?? path.join(rootDir, 'data')
+const dbPath = process.env.DB_PATH ?? path.join(dataDir, 'journal.db')
+const uploadsDir = process.env.UPLOADS_DIR ?? path.join(dataDir, 'uploads')
 
 // A stable-per-process dev secret; production provides its own or gets a
 // persisted one generated below.
@@ -32,11 +34,10 @@ function resolveJwtSecret(): string {
   const fromEnv = process.env.JWT_SECRET
   if (fromEnv) return fromEnv
   if (!isProd) return devSecret
-  const dataDir = path.dirname(dbPath)
-  const secretFile = path.join(dataDir, '.jwt_secret')
+  const secretFile = path.join(path.dirname(dbPath), '.jwt_secret')
   try {
     if (existsSync(secretFile)) return readFileSync(secretFile, 'utf8').trim()
-    mkdirSync(dataDir, { recursive: true })
+    mkdirSync(path.dirname(dbPath), { recursive: true })
     const generated = randomBytes(48).toString('hex')
     writeFileSync(secretFile, generated, { mode: 0o600 })
     return generated
@@ -50,20 +51,15 @@ export const config = {
   isProd,
   port: Number(process.env.PORT ?? 3001),
   rootDir,
+  dataDir,
   dbPath,
+  uploadsDir,
   jwtSecret: resolveJwtSecret(),
-  jwtExpiresInSeconds: 60 * 60 * 24 * 7, // 7 days
-  cookieName: 'tml_session',
-  startingBalance: Number(process.env.STARTING_BALANCE ?? 10000),
-  // Comma-separated list of emails auto-granted admin on registration/login.
-  adminEmails: (process.env.ADMIN_EMAILS ?? '')
-    .split(',')
-    .map((e) => e.trim().toLowerCase())
-    .filter(Boolean),
-  // Real-money movement is intentionally disabled. A licensed operator wires a
-  // real PaymentProvider and flips this on at go-live. Until then everything is
-  // demo credits with no cash value.
-  realMoneyEnabled: process.env.REAL_MONEY_ENABLED === 'true',
+  jwtExpiresInSeconds: 60 * 60 * 24 * 30, // 30 days — personal app, stay logged in
+  cookieName: 'tj_session',
+  // Personal single-user journal: once the owner registers, sign-up is closed.
+  // Set OPEN_REGISTRATION=true to allow additional accounts.
+  openRegistration: process.env.OPEN_REGISTRATION === 'true',
   clientOrigin: process.env.CLIENT_ORIGIN ?? 'http://localhost:5173',
 }
 

@@ -1,149 +1,115 @@
-# TakeMyLucky — Casino Platform
+# Trading Journal
 
-A full-stack casino web platform: a React + TypeScript front end and a Node/Express + SQLite
-backend with **real, separate, server-side accounts**. Every balance, transaction and game
-outcome lives on the server — the browser only renders and animates what the server decides.
+Особистий трейдинг-журнал у стилі преміального термінала — чорно-білий інтерфейс,
+локальні дані, усе в одному місці. Front end на React + TypeScript, back end на
+Node/Express + SQLite. Побудовано як заміна незручному Notion: позиції, плани,
+аналіз графіків, калькулятори та аналітика.
 
-> **Money model.** This build runs entirely on **virtual demo credits with no cash value**.
-> Real-money deposits and withdrawals are intentionally **not** implemented — the payments
-> layer (`server/services/payments.ts`) is a provider-agnostic boundary that reports the
-> cashier as disabled until a licensed operator wires in a real payment/KYC provider and sets
-> `REAL_MONEY_ENABLED=true`. Operating a real-money casino requires a gambling licence in your
-> jurisdiction; the software does not grant one.
+> **Приватність.** Це односторонній персональний застосунок. Після реєстрації
+> першого акаунта реєстрація закривається (`OPEN_REGISTRATION=false`). Усі дані —
+> позиції, плани, завантажені скріншоти графіків — зберігаються у вашій власній
+> базі SQLite та на диску, нічого не надсилається стороннім сервісам.
 
-## Features
+## Можливості
 
-**Accounts & security**
-- Real registration / login with server-side sessions (JWT in an httpOnly cookie)
-- Passwords hashed with scrypt + per-user salt; never stored or hashed in the browser
-- Each account is isolated on the server (its own wallet, ledger, history, seeds)
-- Rate limiting, input validation (zod), banned-account and self-exclusion guards
+**Журнал позицій (база даних як у Notion)**
+- Чотири види однієї бази: **Таблиця**, **Дошка** (Kanban за результатом),
+  **Галерея** (обкладинки-графіки) і **Календар P&L** по днях
+- Повна картка на кожну угоду: вхід/стоп/тейк/вихід, обсяг, ризик, комісія,
+  R-мультиплікатор, сесія, таймфрейм, сетап, теги, оцінка виконання
+- Психологія угоди: емоційний стан і розбір помилок — щоб не повторювати
+- Пошук і фільтри (усі / відкриті / закриті)
 
-**Wallet & ledger**
-- Server-authoritative balances; every bet/win/deposit is an append-only transaction
-- Atomic settlement (a bet can never overdraw or double-spend)
-- Demo top-ups and balance reset; full transaction history per account
+**Аналіз графіків**
+- Прикріплення скріншотів до кожної позиції та плану: перетягуванням,
+  вставкою з буфера (⌘V) або вибором файлу; перегляд у лайтбоксі
 
-**Games (all resolved on the server, provably fair)**
-- **Slots** — 6 machines, weighted reels, 5 paylines, animated to the server result
-- **Blackjack** — server holds the shoe & state; hit / stand / double, dealer stands on 17, 3:2
-- **Roulette** — European single-zero wheel with inside & outside bets
-- **Baccarat** — punto banco with the full third-card drawing rules (Player / Banker / Tie)
-- **Crash** — provably-fair rising-multiplier game with a cash-out target
+**Плани та розбори**
+- Окремі торгові плани / плейбуки з нотатками, закріпленням і власними графіками
 
-**Realtime & engagement (the "premium" layer)**
-- **WebSocket** live updates: players-online counter, live winners feed, live jackpot,
-  and per-user push notifications with in-app toasts
-- **Progressive jackpot** — a real server pool funded by a rake on every bet and won on slots
-- **VIP / loyalty** — XP from wagering, tiers (Rookie → Elite), scaling daily bonuses
-- **Bonuses** — claimable daily bonus, promo-code redemption, referral codes
-- **Achievements** — unlockable badges awarded on gameplay events
-- **Leaderboards** — weekly rankings by amount wagered and by net profit
-- **Provably-fair verifier** — recompute any past round yourself from the revealed seeds
-- Confetti + Web-Audio win effects (respect the sound / reduced-motion settings)
+**Калькулятори**
+- Розмір позиції за ризиком (лоти + одиниці)
+- Risk / Reward і P&L з беззбитковим вінрейтом
+- Піпи та лоти (вартість піпа, обсяг, P&L руху)
+- Складний відсоток / шлях до фінансової цілі
 
-**Provably fair**
-- Each outcome is `HMAC-SHA256(serverSeed, "clientSeed:nonce")`
-- The server commits to `sha256(serverSeed)` up front; rotate to reveal the seed and verify
-  past rounds (Settings → Provably fair)
+**Огляд і аналітика**
+- Дашборд: чистий P&L, вінрейт, profit factor, очікування, крива капіталу,
+  найкраща/найгірша угода, поточна серія
+- Аналітика з розбивками: за сетапом, інструментом, сесією, днем тижня, напрямом
 
-**Responsible gambling**
-- Per-account max-bet, daily-loss and daily-deposit limits
-- Self-exclusion / cool-off that blocks play for a chosen number of days
-- Prominent 18+ / demo labelling
+**Швидкий доступ**
+- Кнопки-посилання у шапці (TradingView, Forex Factory — налаштовуються)
 
-**Admin**
-- Admin dashboard: platform stats, player search, balances, adjust credits, ban/unban
-- Admin-only API guarded by role; actions written to an audit log
+**Інтерфейс**
+- Чорна тема за замовчуванням + світла; збереження вибору
+- Повністю адаптивний (десктоп / планшет / телефон), інтерфейс українською
 
-**Other**
-- Three languages (Ukrainian, Russian, English), switchable and persisted
-- Responsive, theme-consistent UI
+## Стек
 
-## Tech stack
-
-- **Front end:** React 19, TypeScript, Vite, Tailwind CSS v4, React Router, Zustand, i18next
+- **Front end:** React 19, TypeScript, Vite, Tailwind CSS v4, React Router, Zustand
 - **Back end:** Node 22, Express 5, better-sqlite3, jsonwebtoken, zod
-- **Storage:** SQLite (WAL). Money is stored as integer credits (no floats).
+- **Сховище:** SQLite (WAL) + файли зображень на диску
 
-## Getting started
+## Швидкий старт
 
 ```bash
 npm install
-cp .env.example .env          # then set JWT_SECRET (see the file for a generator)
-npm run dev                    # runs the API (:3001) and the Vite dev server (:5173) together
+npm run dev          # API (:3001) + Vite dev server (:5173) разом
 ```
 
-The Vite dev server proxies `/api/*` to the backend, so cookies are same-origin.
+Відкрийте `http://localhost:5173`. Перший запуск попросить створити акаунт —
+це й буде ваш власник журналу.
 
-To make yourself an admin, add your email to `ADMIN_EMAILS` in `.env` and register/log in.
-
-## Production
+## Продакшн
 
 ```bash
-npm run build                  # type-checks and builds the SPA into /dist
-NODE_ENV=production JWT_SECRET=... npm start
+npm run build                       # типи + збірка SPA у /dist
+NODE_ENV=production npm start       # сервер віддає і API, і SPA на PORT (3001)
 ```
 
-In production the Express server serves the built SPA from `/dist` and the API from the same
-origin on `PORT` (default 3001). Put it behind a TLS-terminating reverse proxy (nginx, Caddy,
-a platform load balancer). `secure` cookies are enabled automatically when `NODE_ENV=production`.
+У проді Express віддає зібраний SPA з `/dist` і API з того ж джерела. Поставте
+за TLS-проксі (nginx, Caddy або балансувальник платформи). Secure-cookie
+вмикаються автоматично при `NODE_ENV=production`. Якщо `JWT_SECRET` не задано,
+сервер згенерує його один раз і збереже поруч із базою.
 
-## Scripts
+## Скрипти
 
-| script | purpose |
+| скрипт | призначення |
 | --- | --- |
-| `npm run dev` | backend + frontend together (dev) |
-| `npm run dev:web` / `dev:server` | run either half alone |
-| `npm run build` | type-check + production SPA build |
-| `npm start` | run the server in production (serves API + SPA) |
-| `npm run typecheck` | type-check web and server |
-| `npm test` | run the engine / provably-fair unit tests (vitest) |
-| `npm run seed` | populate demo players, history and promo codes |
+| `npm run dev` | бекенд + фронтенд разом (розробка) |
+| `npm run build` | перевірка типів + продакшн-збірка |
+| `npm start` | сервер у проді (API + SPA) |
+| `npm run typecheck` | перевірка типів web + server |
 | `npm run lint` | oxlint |
 
 ## Docker
 
 ```bash
-docker compose up --build      # serves the app on :3001
+docker compose up --build           # застосунок на :3001
 ```
 
-Set `JWT_SECRET` (and optionally `ADMIN_EMAILS`) in your environment or a `.env` file first.
-The SQLite database persists in the `casino-data` volume.
+Дані (SQLite + зображення) зберігаються у томі `journal-data` (`/var/data`).
 
-## CI
+## Розгортання в хмару
 
-`.github/workflows/ci.yml` runs lint, type-check (web + server), unit tests and the build on
-every push and pull request.
+Дивіться `DEPLOY.md` — one-click кнопки для Render / Railway та інструкція.
 
-## Demo promo codes
-
-`WELCOME` (+5,000) and `LUCKY777` (+7,770) exist out of the box; `npm run seed` adds more.
-
-## Project layout
+## Структура
 
 ```
 server/
-  config.ts            env-driven config (secrets required in prod)
-  db/                  better-sqlite3 connection + ordered migrations
-  lib/                 password (scrypt), token (JWT), provably-fair, http, validation
-  middleware/          auth, admin, rate limit, self-exclusion guard
-  services/            accounts, wallet ledger, fairness, rounds, blackjack, payments
-  games/               server slot/blackjack/roulette engines (source of truth for math)
-  routes/              auth, wallet, account, slots, blackjack, roulette, admin, payments
-  index.ts             Express app; serves the SPA in production
+  config.ts       конфіг з env (DATA_DIR, JWT_SECRET, порт)
+  db/             підключення better-sqlite3 + міграції
+  lib/            password (scrypt), token (JWT), http, валідація
+  middleware/     auth, rate limit, security-заголовки, CSRF-перевірка
+  services/       accounts, settings, trades (+статистика), plans, images
+  routes/         auth, account, trades, plans, images
+  index.ts        Express-застосунок; у проді віддає SPA
 src/
-  lib/api.ts           typed fetch client
-  store/               session + wallet (server-backed) + settings (local)
-  pages/, components/  UI, incl. Admin dashboard and Roulette
+  lib/            типізований API-клієнт, форматування
+  store/          session, settings, trades (Zustand)
+  components/     UI, layout, журнал (види), калькулятори, медіа
+  pages/          Dashboard, Journal, TradeDetail, Analytics, Plans,
+                  Calculators, Settings, Login
 ```
-
-## Going live with real money (later)
-
-1. Obtain a gambling licence for your target jurisdiction.
-2. Implement a concrete `PaymentProvider` in `server/services/payments.ts` (deposits, payouts,
-   webhooks) and a KYC/AML flow with your provider.
-3. Have the RNG / game math certified as required by your regulator.
-4. Only then set `REAL_MONEY_ENABLED=true`.
-
-Until all of that is in place this remains a demo on virtual credits with no cash value.

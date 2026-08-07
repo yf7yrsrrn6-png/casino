@@ -1,19 +1,19 @@
 services:
-  takemylucky:
+  trading-journal:
     build: .
     ports:
       - "3001:3001"
     environment:
       NODE_ENV: production
       PORT: 3001
-      # CHANGE THIS in a real deployment (see .env.example).
+      DATA_DIR: /var/data
+      # CHANGE THIS in a real deployment (see .env.example), or omit it and the
+      # server will generate and persist a secret next to the database.
       JWT_SECRET: ${JWT_SECRET:-change-me-in-production}
-      STARTING_BALANCE: ${STARTING_BALANCE:-10000}
-      ADMIN_EMAILS: ${ADMIN_EMAILS:-}
-      REAL_MONEY_ENABLED: "false"
+      OPEN_REGISTRATION: ${OPEN_REGISTRATION:-false}
     volumes:
-      - casino-data:/var/data
+      - journal-data:/var/data
     restart: unless-stopped
 
 volumes:
-  casino-data:
+  journal-data:

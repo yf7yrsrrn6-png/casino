@@ -4,5 +4,6 @@ export default defineConfig({
   test: {
     include: ['server/**/*.test.ts'],
     environment: 'node',
+    passWithNoTests: true,
   },
 })

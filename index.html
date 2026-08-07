@@ -1,17 +1,28 @@
 <!doctype html>
-<html lang="en">
+<html lang="uk" data-theme="dark">
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="description" content="TakeMyLucky — demo casino playground with slots, blackjack and a virtual balance. No real money." />
+    <meta name="theme-color" content="#060708" />
+    <meta
+      name="description"
+      content="Особистий трейдинг-журнал: позиції, плани, аналіз, калькулятори."
+    />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
-      href="https://fonts.googleapis.com/css2?family=Unbounded:wght@400;600;800;900&family=Manrope:wght@400;500;600;700;800&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap"
       rel="stylesheet"
     />
-    <title>TakeMyLucky — Demo Casino</title>
+    <title>Trading Journal</title>
+    <script>
+      // Apply the saved theme before first paint to avoid a flash.
+      try {
+        var t = localStorage.getItem('tj_theme')
+        document.documentElement.dataset.theme = t === 'light' ? 'light' : 'dark'
+      } catch (e) {}
+    </script>
   </head>
   <body>
     <div id="root"></div>
