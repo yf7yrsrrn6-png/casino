@@ -1,135 +1,108 @@
-import { useState, type FormEvent } from 'react'
-import { Link, useLocation, useNavigate } from 'react-router-dom'
-import { useTranslation } from 'react-i18next'
+import { useState } from 'react'
 import { useSession } from '@/store/useSession'
-import { authErrorKey } from '@/lib/authErrors'
-import { Button } from '@/components/ui/Button'
 import { Logo } from '@/components/layout/Logo'
+import { Button } from '@/components/ui/Button'
+import { Field, Input } from '@/components/ui/Field'
+import { Spinner } from '@/components/ui/Feedback'
+
+const ERRORS: Record<string, string> = {
+  invalid_credentials: 'Невірний email або пароль.',
+  email_taken: 'Такий email вже зареєстрований.',
+  registration_closed: 'Реєстрація закрита — акаунт уже існує.',
+  validation_error: 'Перевірте правильність введених даних.',
+  request_failed: 'Сталася помилка. Спробуйте ще раз.',
+}
 
 export function Login() {
-  const { t } = useTranslation()
-  const navigate = useNavigate()
-  const location = useLocation()
+  const needsSetup = useSession((s) => s.needsSetup)
   const login = useSession((s) => s.login)
+  const register = useSession((s) => s.register)
 
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
-  const [totp, setTotp] = useState('')
-  const [twoFactorStep, setTwoFactorStep] = useState(false)
-  const [showPassword, setShowPassword] = useState(false)
+  const [displayName, setDisplayName] = useState('')
+  const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [submitting, setSubmitting] = useState(false)
 
-  const redirectTo = (location.state as { from?: string } | null)?.from ?? '/'
+  const isSetup = needsSetup
 
-  async function handleSubmit(e: FormEvent) {
+  async function onSubmit(e: React.FormEvent) {
     e.preventDefault()
+    setBusy(true)
     setError(null)
-
-    if (!email || !password) {
-      setError('auth.errorRequired')
-      return
+    const res = isSetup
+      ? await register(email, password, displayName || undefined)
+      : await login(email, password)
+    if (!res.ok) {
+      setError(ERRORS[res.error ?? 'request_failed'] ?? ERRORS.request_failed)
+      setBusy(false)
     }
-    if (twoFactorStep && !totp) {
-      setError('auth.errorTotpRequired')
-      return
-    }
-
-    setSubmitting(true)
-    const result = await login(email, password, twoFactorStep ? totp : undefined)
-    setSubmitting(false)
-
-    if (result.twoFactorRequired) {
-      setTwoFactorStep(true)
-      return
-    }
-    if (!result.ok) {
-      setError(result.error === 'invalid_totp' ? 'auth.errorInvalidTotp' : authErrorKey(result.error))
-      return
-    }
-    navigate(redirectTo)
+    // On success the session store flips `user`, App re-routes automatically.
   }
 
   return (
-    <div className="mx-auto flex min-h-[calc(100svh-16rem)] max-w-md items-center px-4 py-12 sm:px-6">
-      <div className="w-full rounded-3xl border border-border bg-surface p-8 shadow-glow-violet">
-        <div className="mb-6 text-center">
-          <div className="flex justify-center">
-            <Logo size="lg" />
-          </div>
-          <h1 className="mt-4 font-display text-2xl font-bold text-white">
-            {t('auth.loginTitle')}
-          </h1>
-          <p className="mt-1 text-sm text-white/50">{t('auth.loginSubtitle')}</p>
+    <div className="grid-bg relative flex min-h-svh items-center justify-center px-4 py-10">
+      <div className="pointer-events-none absolute inset-x-0 top-0 h-80 bg-[radial-gradient(600px_260px_at_50%_-40px,var(--accent-soft),transparent_70%)]" />
+      <div className="relative w-full max-w-sm">
+        <div className="mb-8 flex justify-center">
+          <Logo />
         </div>
+        <div className="surface-card rounded-2xl p-6 shadow-lg">
+          <h1 className="text-xl font-bold text-text">
+            {isSetup ? 'Створення акаунту' : 'Вхід'}
+          </h1>
+          <p className="mt-1 text-[13px] text-muted">
+            {isSetup
+              ? 'Це перший запуск — створіть свій особистий акаунт. Дані зберігаються тільки у вас.'
+              : 'Увійдіть, щоб потрапити у свій журнал.'}
+          </p>
 
-        <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-          <label className="flex flex-col gap-1.5">
-            <span className="text-xs font-semibold text-white/60">{t('auth.email')}</span>
-            <input
-              type="email"
-              autoComplete="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder={t('auth.emailPlaceholder')}
-              className="rounded-xl border border-border bg-surface-2 px-4 py-2.5 text-sm text-white outline-none placeholder:text-white/25 focus:border-gold/50"
-            />
-          </label>
-
-          <label className="flex flex-col gap-1.5">
-            <span className="text-xs font-semibold text-white/60">{t('auth.password')}</span>
-            <div className="relative">
-              <input
-                type={showPassword ? 'text' : 'password'}
-                autoComplete="current-password"
+          <form onSubmit={onSubmit} className="mt-6 space-y-4">
+            {isSetup && (
+              <Field label="Ім'я">
+                <Input
+                  value={displayName}
+                  onChange={(e) => setDisplayName(e.target.value)}
+                  placeholder="Як до вас звертатися"
+                  autoComplete="name"
+                />
+              </Field>
+            )}
+            <Field label="Email">
+              <Input
+                type="email"
+                required
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="you@email.com"
+                autoComplete="email"
+              />
+            </Field>
+            <Field label="Пароль" hint={isSetup ? 'мінімум 6 символів' : undefined}>
+              <Input
+                type="password"
+                required
+                minLength={6}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                placeholder={t('auth.passwordPlaceholder')}
-                className="w-full rounded-xl border border-border bg-surface-2 px-4 py-2.5 pr-11 text-sm text-white outline-none placeholder:text-white/25 focus:border-gold/50"
+                placeholder="••••••••"
+                autoComplete={isSetup ? 'new-password' : 'current-password'}
               />
-              <button
-                type="button"
-                onClick={() => setShowPassword((v) => !v)}
-                className="absolute inset-y-0 right-3 flex items-center text-white/40 hover:text-white/70 cursor-pointer"
-                aria-label={showPassword ? t('auth.hidePassword') : t('auth.showPassword')}
-              >
-                {showPassword ? '🙈' : '👁️'}
-              </button>
-            </div>
-          </label>
+            </Field>
 
-          {twoFactorStep && (
-            <label className="flex flex-col gap-1.5">
-              <span className="text-xs font-semibold text-white/60">{t('auth.totpCode')}</span>
-              <input
-                inputMode="numeric"
-                autoComplete="one-time-code"
-                autoFocus
-                value={totp}
-                onChange={(e) => setTotp(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                placeholder="123456"
-                className="rounded-xl border border-gold/40 bg-surface-2 px-4 py-2.5 text-center font-mono text-lg tracking-[0.3em] text-white outline-none focus:border-gold/70"
-              />
-              <span className="text-xs text-white/40">{t('auth.totpHint')}</span>
-            </label>
-          )}
+            {error && (
+              <div className="rounded-xl bg-loss-soft px-3 py-2.5 text-[13px] font-medium text-loss">
+                {error}
+              </div>
+            )}
 
-          {error && (
-            <div className="rounded-xl border border-ruby/40 bg-ruby/10 px-4 py-2.5 text-sm text-ruby">
-              {t(error)}
-            </div>
-          )}
-
-          <Button type="submit" size="lg" disabled={submitting} className="mt-2 w-full">
-            {submitting ? t('common.loading') : t('auth.submitLogin')}
-          </Button>
-        </form>
-
-        <p className="mt-5 text-center text-sm text-white/50">
-          {t('auth.noAccount')}{' '}
-          <Link to="/register" className="font-semibold text-gold-soft hover:text-gold">
-            {t('auth.signUpLink')}
-          </Link>
+            <Button type="submit" size="lg" className="w-full" disabled={busy}>
+              {busy ? <Spinner /> : isSetup ? 'Створити акаунт' : 'Увійти'}
+            </Button>
+          </form>
+        </div>
+        <p className="mt-6 text-center text-[12px] text-subtle">
+          Особистий трейдинг-журнал · дані під паролем
         </p>
       </div>
     </div>

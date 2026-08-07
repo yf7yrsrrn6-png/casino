@@ -3,7 +3,6 @@ import { config } from '../config.ts'
 
 export interface SessionPayload {
   sub: string // user id
-  role: 'user' | 'admin'
 }
 
 export function signSession(payload: SessionPayload): string {
@@ -15,8 +14,8 @@ export function signSession(payload: SessionPayload): string {
 export function verifySession(token: string): SessionPayload | null {
   try {
     const decoded = jwt.verify(token, config.jwtSecret)
-    if (typeof decoded === 'object' && decoded && 'sub' in decoded && 'role' in decoded) {
-      return { sub: String(decoded.sub), role: (decoded as SessionPayload).role }
+    if (typeof decoded === 'object' && decoded && 'sub' in decoded) {
+      return { sub: String(decoded.sub) }
     }
     return null
   } catch {

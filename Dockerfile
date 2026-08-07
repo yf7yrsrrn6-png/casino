@@ -1,4 +1,4 @@
-# Multi-stage build for the TakeMyLucky full-stack app.
+# Multi-stage build for the Trading Journal full-stack app.
 # Dependencies are installed exactly once (in the build stage) to keep the
 # builder's memory/time low — a second `npm ci` was OOM-killing constrained
 # CI builders (exit 137). The runtime image reuses the pruned node_modules.
@@ -32,11 +32,11 @@ COPY --from=build /app/dist ./dist
 COPY package.json package-lock.json tsconfig.json ./
 COPY server ./server
 
-# SQLite database directory. Attach a persistent volume at /var/data on your
-# host (Railway Volume, Render disk, or a docker volume — see docker-compose).
-# NOTE: no Dockerfile VOLUME instruction — Railway rejects it; persistence is
-# provided by the platform's volume mounted at this path instead.
-ENV DB_PATH=/var/data/casino.db
+# Data directory (SQLite DB + uploaded chart images). Attach a persistent
+# volume at /var/data on your host (Railway Volume, Render disk, or a docker
+# volume — see docker-compose). NOTE: no Dockerfile VOLUME instruction —
+# Railway rejects it; persistence is provided by the platform's mounted volume.
+ENV DATA_DIR=/var/data
 RUN mkdir -p /var/data
 
 EXPOSE 3001

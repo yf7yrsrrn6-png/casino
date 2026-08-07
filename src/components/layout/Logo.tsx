@@ -1,24 +1,29 @@
-import { useTranslation } from 'react-i18next'
-
-const SIZE_CLASSES = {
-  sm: { mark: 'h-8 w-8 rounded-lg text-base', text: 'text-lg' },
-  md: { mark: 'h-9 w-9 rounded-xl text-lg', text: 'text-xl' },
-  lg: { mark: 'h-12 w-12 rounded-2xl text-2xl', text: 'text-2xl' },
-} as const
-
-export function Logo({ size = 'md' }: { size?: keyof typeof SIZE_CLASSES }) {
-  const { t } = useTranslation()
-  const s = SIZE_CLASSES[size]
+export function Logo({ compact = false }: { compact?: boolean }) {
   return (
-    <span className="flex items-center gap-2">
-      <span
-        className={`flex shrink-0 items-center justify-center bg-gradient-to-br from-gold to-magenta font-display font-black text-ink shadow-glow-magenta ${s.mark}`}
-      >
-        7
-      </span>
-      <span className={`font-display font-extrabold text-gradient-gold ${s.text}`}>
-        {t('brand.name')}
-      </span>
-    </span>
+    <div className="flex items-center gap-2.5">
+      <div className="relative grid h-9 w-9 place-items-center overflow-hidden rounded-[11px] bg-white text-[#0a0b0d] shadow-[0_6px_18px_-6px_rgba(255,255,255,0.25)]">
+        <span className="absolute inset-x-0 top-0 h-1/2 bg-black/5" />
+        <svg
+          width="20"
+          height="20"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth={2.4}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          className="relative"
+        >
+          <path d="M3 17l5-5 3 3 7-8" />
+          <path d="M15 7h4v4" />
+        </svg>
+      </div>
+      {!compact && (
+        <div className="leading-tight">
+          <div className="text-[15px] font-bold tracking-tight text-text">Trading Journal</div>
+          <div className="text-[11px] font-medium text-subtle">terminal workspace</div>
+        </div>
+      )}
+    </div>
   )
 }

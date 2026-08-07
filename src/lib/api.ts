@@ -39,41 +39,150 @@ export const api = {
   get: <T>(path: string) => request<T>('GET', path),
   post: <T>(path: string, body?: unknown) => request<T>('POST', path, body),
   put: <T>(path: string, body?: unknown) => request<T>('PUT', path, body),
+  del: <T>(path: string) => request<T>('DELETE', path),
 }
 
 // ---- Shared response types ----
+
 export interface ApiUser {
   id: string
   email: string
   displayName: string
-  role: 'user' | 'admin'
-  status: 'active' | 'banned'
-  selfExcludedUntil: number | null
   createdAt: number
-  xp?: number
-  vipLevel?: number
-  referralCode?: string | null
-  twoFactorEnabled?: boolean
 }
 
-export interface WalletSummary {
-  balance: number
-  totalWagered: number
-  totalWon: number
-  gamesPlayed: number
-}
+export type Direction = 'long' | 'short'
+export type TradeStatus = 'open' | 'closed'
 
-export interface ApiTransaction {
+export interface Trade {
   id: string
-  type: 'deposit' | 'bet' | 'win' | 'bonus' | 'adjustment' | 'refund'
-  amount: number
-  balance_after: number
-  label: string | null
-  created_at: number
+  symbol: string
+  direction: Direction
+  status: TradeStatus
+  entryPrice: number | null
+  exitPrice: number | null
+  stopLoss: number | null
+  takeProfit: number | null
+  size: number | null
+  riskAmount: number | null
+  pnl: number | null
+  fees: number
+  rr: number | null
+  session: string | null
+  setup: string | null
+  plan: string | null
+  notes: string | null
+  rating: number | null
+  tags: string[]
+  timeframe: string | null
+  emotion: string | null
+  mistakes: string | null
+  checklist: ChecklistItem[]
+  confidence: number | null
+  mae: number | null
+  mfe: number | null
+  openedAt: number | null
+  closedAt: number | null
+  createdAt: number
+  updatedAt: number
+  coverUrl: string | null
 }
 
-export interface FairInfo {
-  serverSeedHash: string
-  clientSeed: string
-  nonce: number
+export interface ChecklistItem {
+  text: string
+  done: boolean
+}
+
+export interface TradeImage {
+  id: string
+  tradeId: string | null
+  planId: string | null
+  mime: string
+  caption: string | null
+  createdAt: number
+  url: string
+}
+
+export interface TradeStats {
+  totalTrades: number
+  openTrades: number
+  closedTrades: number
+  wins: number
+  losses: number
+  breakeven: number
+  winRate: number
+  netPnl: number
+  grossProfit: number
+  grossLoss: number
+  profitFactor: number | null
+  avgWin: number
+  avgLoss: number
+  avgRr: number | null
+  expectancy: number
+  bestTrade: number
+  worstTrade: number
+  currentStreak: number
+  maxWinStreak: number
+  maxLossStreak: number
+  maxDrawdown: number
+  maxDrawdownPct: number
+  avgHoldMinutes: number | null
+  expectancyR: number | null
+  sqn: number | null
+  avgDiscipline: number | null
+  equityCurve: { t: number; equity: number; pnl: number }[]
+}
+
+export type PlanKind = 'note' | 'playbook' | 'review'
+
+export interface Plan {
+  id: string
+  title: string
+  content: string
+  pinned: boolean
+  kind: PlanKind
+  createdAt: number
+  updatedAt: number
+}
+
+export interface QuickLink {
+  label: string
+  url: string
+}
+
+export interface Settings {
+  accountBalance: number
+  currency: string
+  defaultRiskPct: number
+  quickLinks: QuickLink[]
+  theme: 'light' | 'dark'
+  checklistTemplate: string[]
+}
+
+export type GoalMetric = 'net_pnl' | 'win_rate' | 'trades' | 'avg_rr' | 'profit_factor'
+export type GoalPeriod = 'month' | 'quarter' | 'year' | 'all'
+
+export interface Goal {
+  id: string
+  title: string
+  metric: GoalMetric
+  target: number
+  period: GoalPeriod
+  createdAt: number
+  updatedAt: number
+}
+
+export type Bias = 'long' | 'short' | 'neutral'
+
+export interface WatchItem {
+  id: string
+  symbol: string
+  bias: Bias
+  entry: number | null
+  target: number | null
+  stop: number | null
+  note: string | null
+  pinned: boolean
+  createdAt: number
+  updatedAt: number
 }

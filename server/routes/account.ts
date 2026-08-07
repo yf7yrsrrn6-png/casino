@@ -1,25 +1,11 @@
 import { Router } from 'express'
 import { z } from 'zod'
-import { db, now } from '../db/index.ts'
-import { config } from '../config.ts'
 import { handler, unauthorized } from '../lib/http.ts'
 import { parse, passwordSchema } from '../lib/validate.ts'
 import { verifyPassword } from '../lib/password.ts'
 import { requireAuth } from '../middleware/auth.ts'
-import {
-  findById,
-  updatePassword,
-  setDisplayName,
-  deleteUser,
-  setSelfExclusion,
-  publicUser,
-  setTotpSecret,
-  setTotpEnabled,
-} from '../services/accounts.ts'
-import { generateSecret, otpauthUri, verifyTotp } from '../lib/totp.ts'
-import { getWallet, getLimits } from '../services/wallet.ts'
-import { favoriteGame, listRounds } from '../services/rounds.ts'
-import { publicSeedInfo, rotateSeed } from '../services/fairness.ts'
+import { findById, updatePassword, setDisplayName, publicUser } from '../services/accounts.ts'
+import { ensureSettings, publicSettings, updateSettings } from '../services/settings.ts'
 
 export const accountRouter = Router()
 accountRouter.use(requireAuth)
@@ -28,25 +14,7 @@ accountRouter.get(
   '/profile',
   handler(async (req, res) => {
     const user = findById(req.user!.id)!
-    const wallet = getWallet(user.id)
-    res.json({
-      user: publicUser(user),
-      stats: {
-        balance: wallet.balance,
-        totalWagered: wallet.total_wagered,
-        totalWon: wallet.total_won,
-        gamesPlayed: wallet.games_played,
-        favoriteGame: favoriteGame(user.id),
-      },
-      limits: getLimits(user.id),
-    })
-  }),
-)
-
-accountRouter.get(
-  '/history',
-  handler(async (req, res) => {
-    res.json({ rounds: listRounds(req.user!.id, 50) })
+    res.json({ user: publicUser(user), settings: publicSettings(ensureSettings(user.id)) })
   }),
 )
 
@@ -74,128 +42,22 @@ accountRouter.post(
   }),
 )
 
-// Responsible-gambling limits.
-const limitsSchema = z.object({
-  depositLimitDaily: z.number().int().positive().nullable().optional(),
-  lossLimitDaily: z.number().int().positive().nullable().optional(),
-  maxBet: z.number().int().positive().nullable().optional(),
+const quickLinkSchema = z.object({
+  label: z.string().trim().min(1).max(40),
+  url: z.string().trim().url().max(500),
+})
+const settingsSchema = z.object({
+  accountBalance: z.number().min(0).max(1_000_000_000).optional(),
+  currency: z.string().trim().min(1).max(8).optional(),
+  defaultRiskPct: z.number().min(0).max(100).optional(),
+  quickLinks: z.array(quickLinkSchema).max(20).optional(),
+  theme: z.enum(['light', 'dark']).optional(),
+  checklistTemplate: z.array(z.string().trim().min(1).max(120)).max(40).optional(),
 })
 accountRouter.put(
-  '/limits',
+  '/settings',
   handler(async (req, res) => {
-    const input = parse(limitsSchema, req.body)
-    const existing = getLimits(req.user!.id)
-    const next = {
-      deposit: input.depositLimitDaily ?? existing?.deposit_limit_daily ?? null,
-      loss: input.lossLimitDaily ?? existing?.loss_limit_daily ?? null,
-      maxBet: input.maxBet ?? existing?.max_bet ?? null,
-    }
-    db.prepare(
-      `INSERT INTO limits (user_id, deposit_limit_daily, loss_limit_daily, max_bet, updated_at)
-       VALUES (?, ?, ?, ?, ?)
-       ON CONFLICT(user_id) DO UPDATE SET
-         deposit_limit_daily = excluded.deposit_limit_daily,
-         loss_limit_daily = excluded.loss_limit_daily,
-         max_bet = excluded.max_bet,
-         updated_at = excluded.updated_at`,
-    ).run(req.user!.id, next.deposit, next.loss, next.maxBet, now())
-    res.json({ limits: getLimits(req.user!.id) })
-  }),
-)
-
-// Self-exclusion / cool-off for a number of days (responsible gambling).
-const exclusionSchema = z.object({ days: z.number().int().min(1).max(365) })
-accountRouter.post(
-  '/self-exclude',
-  handler(async (req, res) => {
-    const { days } = parse(exclusionSchema, req.body)
-    const until = now() + days * 24 * 60 * 60 * 1000
-    setSelfExclusion(req.user!.id, until)
-    res.json({ selfExcludedUntil: until })
-  }),
-)
-
-const deleteSchema = z.object({ password: z.string() })
-accountRouter.post(
-  '/delete',
-  handler(async (req, res) => {
-    const { password } = parse(deleteSchema, req.body)
-    const user = findById(req.user!.id)!
-    if (!verifyPassword(password, user.password_hash, user.password_salt)) {
-      throw unauthorized('invalid_credentials')
-    }
-    deleteUser(user.id) // cascades to wallet/transactions/rounds/etc.
-    res.clearCookie(config.cookieName, { path: '/' })
-    res.json({ ok: true })
-  }),
-)
-
-// --- Two-factor authentication (TOTP) ---
-
-// Step 1: generate a secret and return the otpauth URI (not yet enabled).
-accountRouter.post(
-  '/2fa/setup',
-  handler(async (req, res) => {
-    const user = findById(req.user!.id)!
-    if (user.totp_enabled === 1) throw unauthorized('already_enabled')
-    const secret = generateSecret()
-    setTotpSecret(user.id, secret)
-    res.json({ secret, otpauth: otpauthUri(user.email, secret) })
-  }),
-)
-
-const totpSchema = z.object({ code: z.string().trim().min(6).max(10) })
-
-// Step 2: confirm a code from the authenticator app to enable 2FA.
-accountRouter.post(
-  '/2fa/enable',
-  handler(async (req, res) => {
-    const { code } = parse(totpSchema, req.body)
-    const user = findById(req.user!.id)!
-    if (!user.totp_secret) throw unauthorized('no_secret')
-    if (!verifyTotp(user.totp_secret, code)) throw unauthorized('invalid_totp')
-    setTotpEnabled(user.id, true)
-    res.json({ ok: true, user: publicUser(findById(user.id)!) })
-  }),
-)
-
-const disableSchema = z.object({ password: z.string() })
-accountRouter.post(
-  '/2fa/disable',
-  handler(async (req, res) => {
-    const { password } = parse(disableSchema, req.body)
-    const user = findById(req.user!.id)!
-    if (!verifyPassword(password, user.password_hash, user.password_salt)) {
-      throw unauthorized('invalid_credentials')
-    }
-    setTotpEnabled(user.id, false)
-    setTotpSecret(user.id, null)
-    res.json({ ok: true, user: publicUser(findById(user.id)!) })
-  }),
-)
-
-// Provably-fair: view current commitment, or rotate to reveal the old server seed.
-accountRouter.get(
-  '/fairness',
-  handler(async (req, res) => {
-    res.json(publicSeedInfo(req.user!.id))
-  }),
-)
-
-const rotateSchema = z.object({ clientSeed: z.string().trim().min(1).max(64).optional() })
-accountRouter.post(
-  '/fairness/rotate',
-  handler(async (req, res) => {
-    const { clientSeed } = parse(rotateSchema, req.body)
-    const { revealed } = rotateSeed(req.user!.id, clientSeed)
-    res.json({
-      revealed: {
-        serverSeed: revealed.server_seed,
-        serverSeedHash: revealed.server_seed_hash,
-        clientSeed: revealed.client_seed,
-        nonce: revealed.nonce,
-      },
-      current: publicSeedInfo(req.user!.id),
-    })
+    const patch = parse(settingsSchema, req.body)
+    res.json({ settings: publicSettings(updateSettings(req.user!.id, patch)) })
   }),
 )

@@ -24,147 +24,143 @@ const MIGRATIONS: { id: number; name: string; sql: string }[] = [
         display_name  TEXT NOT NULL,
         password_hash TEXT NOT NULL,
         password_salt TEXT NOT NULL,
-        role          TEXT NOT NULL DEFAULT 'user',      -- 'user' | 'admin'
-        status        TEXT NOT NULL DEFAULT 'active',     -- 'active' | 'banned'
-        self_excluded_until INTEGER,                      -- epoch ms, NULL if none
         created_at    INTEGER NOT NULL,
         last_login_at INTEGER
       );
 
-      CREATE TABLE wallets (
-        user_id       TEXT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
-        balance       INTEGER NOT NULL DEFAULT 0,
-        total_wagered INTEGER NOT NULL DEFAULT 0,
-        total_won     INTEGER NOT NULL DEFAULT 0,
-        games_played  INTEGER NOT NULL DEFAULT 0,
-        updated_at    INTEGER NOT NULL
+      -- Per-user preferences that also feed the calculators (account balance,
+      -- default risk %, currency) and the quick-link launcher.
+      CREATE TABLE settings (
+        user_id         TEXT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+        account_balance REAL NOT NULL DEFAULT 10000,
+        currency        TEXT NOT NULL DEFAULT 'USD',
+        default_risk_pct REAL NOT NULL DEFAULT 1,
+        quick_links     TEXT NOT NULL DEFAULT '[]',  -- JSON [{label,url}]
+        theme           TEXT NOT NULL DEFAULT 'light',
+        updated_at      INTEGER NOT NULL
       );
 
-      CREATE TABLE transactions (
-        id            TEXT PRIMARY KEY,
-        user_id       TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-        type          TEXT NOT NULL,   -- deposit | bet | win | bonus | adjustment | refund
-        amount        INTEGER NOT NULL, -- signed credits
-        balance_after INTEGER NOT NULL,
-        label         TEXT,
-        created_at    INTEGER NOT NULL
+      -- Standalone trading plans / playbooks (markdown notes).
+      CREATE TABLE plans (
+        id         TEXT PRIMARY KEY,
+        user_id    TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        title      TEXT NOT NULL,
+        content    TEXT NOT NULL DEFAULT '',
+        pinned     INTEGER NOT NULL DEFAULT 0,
+        created_at INTEGER NOT NULL,
+        updated_at INTEGER NOT NULL
       );
-      CREATE INDEX idx_tx_user ON transactions(user_id, created_at DESC);
+      CREATE INDEX idx_plans_user ON plans(user_id, pinned DESC, updated_at DESC);
 
-      CREATE TABLE game_rounds (
-        id             TEXT PRIMARY KEY,
-        user_id        TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-        game           TEXT NOT NULL,  -- slots | blackjack | roulette
-        game_id        TEXT,           -- specific machine/table id
-        bet            INTEGER NOT NULL,
-        payout         INTEGER NOT NULL,
-        outcome_json   TEXT NOT NULL,
-        server_seed    TEXT,
-        server_seed_hash TEXT,
-        client_seed    TEXT,
-        nonce          INTEGER,
-        created_at     INTEGER NOT NULL
+      -- Positions / trades journal.
+      CREATE TABLE trades (
+        id           TEXT PRIMARY KEY,
+        user_id      TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        symbol       TEXT NOT NULL,
+        direction    TEXT NOT NULL,                    -- 'long' | 'short'
+        status       TEXT NOT NULL DEFAULT 'open',     -- 'open' | 'closed'
+        entry_price  REAL,
+        exit_price   REAL,
+        stop_loss    REAL,
+        take_profit  REAL,
+        size         REAL,                             -- lots / units
+        risk_amount  REAL,                             -- money risked
+        pnl          REAL,                             -- realized P&L (money)
+        fees         REAL NOT NULL DEFAULT 0,
+        rr           REAL,                             -- realized R multiple
+        session      TEXT,                             -- london / ny / asia ...
+        setup        TEXT,                             -- strategy / setup name
+        plan         TEXT,                             -- pre-trade plan (markdown)
+        notes        TEXT,                             -- post-trade review (markdown)
+        rating       INTEGER,                          -- 1..5 self rating
+        tags         TEXT NOT NULL DEFAULT '[]',       -- JSON string[]
+        opened_at    INTEGER,
+        closed_at    INTEGER,
+        created_at   INTEGER NOT NULL,
+        updated_at   INTEGER NOT NULL
       );
-      CREATE INDEX idx_rounds_user ON game_rounds(user_id, created_at DESC);
+      CREATE INDEX idx_trades_user ON trades(user_id, created_at DESC);
+      CREATE INDEX idx_trades_status ON trades(user_id, status);
 
-      CREATE TABLE fair_seeds (
-        user_id          TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-        server_seed      TEXT NOT NULL,
-        server_seed_hash TEXT NOT NULL,
-        client_seed      TEXT NOT NULL,
-        nonce            INTEGER NOT NULL DEFAULT 0,
-        active           INTEGER NOT NULL DEFAULT 1,
-        created_at       INTEGER NOT NULL
+      -- Uploaded chart screenshots / analysis images, attached to a trade or a plan.
+      CREATE TABLE images (
+        id         TEXT PRIMARY KEY,
+        user_id    TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        trade_id   TEXT REFERENCES trades(id) ON DELETE CASCADE,
+        plan_id    TEXT REFERENCES plans(id) ON DELETE CASCADE,
+        filename   TEXT NOT NULL,                      -- stored file on disk
+        mime       TEXT NOT NULL,
+        caption    TEXT,
+        created_at INTEGER NOT NULL
       );
-      CREATE INDEX idx_seed_user_active ON fair_seeds(user_id, active);
-
-      CREATE TABLE limits (
-        user_id                 TEXT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
-        deposit_limit_daily     INTEGER,   -- NULL = no limit
-        loss_limit_daily        INTEGER,
-        max_bet                 INTEGER,
-        updated_at              INTEGER NOT NULL
-      );
-
-      CREATE TABLE blackjack_games (
-        user_id     TEXT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
-        state_json  TEXT NOT NULL,
-        updated_at  INTEGER NOT NULL
-      );
-
-      CREATE TABLE audit_log (
-        id             TEXT PRIMARY KEY,
-        admin_id       TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-        action         TEXT NOT NULL,
-        target_user_id TEXT,
-        detail         TEXT,
-        created_at     INTEGER NOT NULL
-      );
-      CREATE INDEX idx_audit_created ON audit_log(created_at DESC);
+      CREATE INDEX idx_images_trade ON images(trade_id);
+      CREATE INDEX idx_images_plan ON images(plan_id);
     `,
   },
   {
     id: 2,
-    name: 'engagement',
+    name: 'trade_psychology',
     sql: `
-      ALTER TABLE users ADD COLUMN xp INTEGER NOT NULL DEFAULT 0;
-      ALTER TABLE users ADD COLUMN vip_level INTEGER NOT NULL DEFAULT 0;
-      ALTER TABLE users ADD COLUMN referral_code TEXT;
-      ALTER TABLE users ADD COLUMN referred_by TEXT;
-      ALTER TABLE users ADD COLUMN daily_claimed_at INTEGER;
-      CREATE INDEX idx_users_referral ON users(referral_code);
-
-      -- Single-row progressive jackpot pool.
-      CREATE TABLE jackpot (
-        id         INTEGER PRIMARY KEY CHECK (id = 1),
-        amount     INTEGER NOT NULL,
-        seed       INTEGER NOT NULL,
-        won_count  INTEGER NOT NULL DEFAULT 0,
-        updated_at INTEGER NOT NULL
-      );
-
-      CREATE TABLE promo_codes (
-        code            TEXT PRIMARY KEY,
-        amount          INTEGER NOT NULL,
-        max_redemptions INTEGER,           -- NULL = unlimited
-        redemptions     INTEGER NOT NULL DEFAULT 0,
-        expires_at      INTEGER,
-        active          INTEGER NOT NULL DEFAULT 1,
-        created_at      INTEGER NOT NULL
-      );
-
-      CREATE TABLE promo_redemptions (
-        user_id     TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-        code        TEXT NOT NULL,
-        redeemed_at INTEGER NOT NULL,
-        PRIMARY KEY (user_id, code)
-      );
-
-      CREATE TABLE notifications (
-        id         TEXT PRIMARY KEY,
-        user_id    TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-        type       TEXT NOT NULL,
-        title      TEXT NOT NULL,
-        body       TEXT,
-        read       INTEGER NOT NULL DEFAULT 0,
-        created_at INTEGER NOT NULL
-      );
-      CREATE INDEX idx_notif_user ON notifications(user_id, created_at DESC);
-
-      CREATE TABLE user_achievements (
-        user_id        TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-        achievement_id TEXT NOT NULL,
-        unlocked_at    INTEGER NOT NULL,
-        PRIMARY KEY (user_id, achievement_id)
-      );
+      ALTER TABLE trades ADD COLUMN timeframe TEXT;
+      ALTER TABLE trades ADD COLUMN emotion   TEXT;
+      ALTER TABLE trades ADD COLUMN mistakes  TEXT;
     `,
   },
   {
     id: 3,
-    name: 'two_factor',
+    name: 'checklist_mae_watchlist',
     sql: `
-      ALTER TABLE users ADD COLUMN totp_secret TEXT;
-      ALTER TABLE users ADD COLUMN totp_enabled INTEGER NOT NULL DEFAULT 0;
+      -- Pre-trade discipline checklist (JSON [{text,done}]) + confidence.
+      ALTER TABLE trades ADD COLUMN checklist  TEXT;
+      ALTER TABLE trades ADD COLUMN confidence INTEGER;         -- 1..5 pre-trade
+      -- Maximum adverse / favourable excursion (as price levels reached).
+      ALTER TABLE trades ADD COLUMN mae        REAL;
+      ALTER TABLE trades ADD COLUMN mfe        REAL;
+
+      -- Default checklist items used to prefill new trades (JSON string[]).
+      ALTER TABLE settings ADD COLUMN checklist_template TEXT;
+
+      -- Watchlist: instruments to keep an eye on, with a bias and levels.
+      CREATE TABLE watchlist (
+        id         TEXT PRIMARY KEY,
+        user_id    TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        symbol     TEXT NOT NULL,
+        bias       TEXT NOT NULL DEFAULT 'neutral',  -- long | short | neutral
+        entry      REAL,
+        target     REAL,
+        stop       REAL,
+        note       TEXT,
+        pinned     INTEGER NOT NULL DEFAULT 0,
+        created_at INTEGER NOT NULL,
+        updated_at INTEGER NOT NULL
+      );
+      CREATE INDEX idx_watchlist_user ON watchlist(user_id, pinned DESC, updated_at DESC);
+    `,
+  },
+  {
+    id: 4,
+    name: 'plan_kind',
+    sql: `
+      -- Classify knowledge-base pages: free notes, strategy playbooks, or reviews.
+      ALTER TABLE plans ADD COLUMN kind TEXT NOT NULL DEFAULT 'note'; -- note | playbook | review
+    `,
+  },
+  {
+    id: 5,
+    name: 'goals',
+    sql: `
+      -- Performance goals with progress tracked against a period's trades.
+      CREATE TABLE goals (
+        id         TEXT PRIMARY KEY,
+        user_id    TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        title      TEXT NOT NULL,
+        metric     TEXT NOT NULL,                 -- net_pnl | win_rate | trades | avg_rr | profit_factor
+        target     REAL NOT NULL,
+        period     TEXT NOT NULL DEFAULT 'month',  -- month | quarter | year | all
+        created_at INTEGER NOT NULL,
+        updated_at INTEGER NOT NULL
+      );
+      CREATE INDEX idx_goals_user ON goals(user_id, created_at DESC);
     `,
   },
 ]
