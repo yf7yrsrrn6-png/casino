@@ -297,6 +297,12 @@ export const IconRedo = (p: IconProps) => (
   </Base>
 )
 
+export const IconFlag = (p: IconProps) => (
+  <Base {...p}>
+    <path d="M4 22V4M4 4h13l-2 4 2 4H4" />
+  </Base>
+)
+
 export const IconDownload = (p: IconProps) => (
   <Base {...p}>
     <path d="M12 3v12M7 10l5 5 5-5" />

@@ -1,5 +1,7 @@
-import { useMemo } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
+import { api, type Goal } from '@/lib/api'
+import { computeGoalProgress, METRIC_LABEL } from '@/lib/goals'
 import { useTrades } from '@/store/useTrades'
 import { useSettings } from '@/store/useSettings'
 import { useSession } from '@/store/useSession'
@@ -19,6 +21,14 @@ export function Dashboard() {
   const openEditor = useTrades((s) => s.openEditor)
   const settings = useSettings((s) => s.settings)
   const user = useSession((s) => s.user)
+
+  const [goals, setGoals] = useState<Goal[]>([])
+  useEffect(() => {
+    api
+      .get<{ goals: Goal[] }>('/goals')
+      .then(({ goals }) => setGoals(goals))
+      .catch(() => {})
+  }, [])
 
   const openPositions = useMemo(() => trades.filter((t) => t.status === 'open'), [trades])
   const recent = useMemo(
@@ -199,6 +209,45 @@ export function Dashboard() {
               ))}
             </div>
           </Card>
+
+          {/* Goals progress */}
+          {goals.length > 0 && (
+            <Card>
+              <CardHeader
+                title="Цілі"
+                subtitle="Прогрес за поточний період"
+                action={
+                  <Link to="/goals" className="text-[13px] font-semibold text-accent hover:underline">
+                    Усі
+                  </Link>
+                }
+              />
+              <div className="grid grid-cols-1 gap-px overflow-hidden rounded-b-2xl bg-border sm:grid-cols-2 lg:grid-cols-3">
+                {goals.slice(0, 3).map((g) => {
+                  const p = computeGoalProgress(g, trades, currency)
+                  return (
+                    <div key={g.id} className="bg-surface p-4">
+                      <div className="flex items-center justify-between">
+                        <span className="truncate text-[13px] font-semibold text-text">{g.title}</span>
+                        <span className="tnum text-[12px] text-subtle">{p.pct.toFixed(0)}%</span>
+                      </div>
+                      <div className="mt-1 text-[11px] text-subtle">{METRIC_LABEL[g.metric]}</div>
+                      <div className="mt-2 flex items-end justify-between">
+                        <span className="tnum text-[17px] font-bold text-text">{p.display}</span>
+                        <span className="tnum text-[12px] text-subtle">/ {p.targetDisplay}</span>
+                      </div>
+                      <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-surface-2">
+                        <div
+                          className={`h-full rounded-full ${p.reached ? 'bg-profit' : 'bg-white'}`}
+                          style={{ width: `${p.pct}%` }}
+                        />
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            </Card>
+          )}
 
           {/* Open positions + recent */}
           <div className="grid gap-5 lg:grid-cols-2">

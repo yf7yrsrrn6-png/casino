@@ -145,6 +145,24 @@ const MIGRATIONS: { id: number; name: string; sql: string }[] = [
       ALTER TABLE plans ADD COLUMN kind TEXT NOT NULL DEFAULT 'note'; -- note | playbook | review
     `,
   },
+  {
+    id: 5,
+    name: 'goals',
+    sql: `
+      -- Performance goals with progress tracked against a period's trades.
+      CREATE TABLE goals (
+        id         TEXT PRIMARY KEY,
+        user_id    TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        title      TEXT NOT NULL,
+        metric     TEXT NOT NULL,                 -- net_pnl | win_rate | trades | avg_rr | profit_factor
+        target     REAL NOT NULL,
+        period     TEXT NOT NULL DEFAULT 'month',  -- month | quarter | year | all
+        created_at INTEGER NOT NULL,
+        updated_at INTEGER NOT NULL
+      );
+      CREATE INDEX idx_goals_user ON goals(user_id, created_at DESC);
+    `,
+  },
 ]
 
 db.exec(`CREATE TABLE IF NOT EXISTS schema_migrations (

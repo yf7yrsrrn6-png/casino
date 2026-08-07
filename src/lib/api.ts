@@ -159,6 +159,19 @@ export interface Settings {
   checklistTemplate: string[]
 }
 
+export type GoalMetric = 'net_pnl' | 'win_rate' | 'trades' | 'avg_rr' | 'profit_factor'
+export type GoalPeriod = 'month' | 'quarter' | 'year' | 'all'
+
+export interface Goal {
+  id: string
+  title: string
+  metric: GoalMetric
+  target: number
+  period: GoalPeriod
+  createdAt: number
+  updatedAt: number
+}
+
 export type Bias = 'long' | 'short' | 'neutral'
 
 export interface WatchItem {
