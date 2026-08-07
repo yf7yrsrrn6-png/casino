@@ -13,6 +13,7 @@ import { accountRouter } from './routes/account.ts'
 import { tradesRouter } from './routes/trades.ts'
 import { plansRouter } from './routes/plans.ts'
 import { imagesRouter } from './routes/images.ts'
+import { watchlistRouter } from './routes/watchlist.ts'
 
 const app = express()
 app.set('trust proxy', 1)
@@ -34,6 +35,7 @@ app.use('/api/account', accountRouter)
 app.use('/api/trades', tradesRouter)
 app.use('/api/plans', plansRouter)
 app.use('/api/images', imagesRouter)
+app.use('/api/watchlist', watchlistRouter)
 
 app.use('/api', (_req, res) => {
   res.status(404).json({ error: 'not_found' })

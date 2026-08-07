@@ -77,11 +77,20 @@ export interface Trade {
   timeframe: string | null
   emotion: string | null
   mistakes: string | null
+  checklist: ChecklistItem[]
+  confidence: number | null
+  mae: number | null
+  mfe: number | null
   openedAt: number | null
   closedAt: number | null
   createdAt: number
   updatedAt: number
   coverUrl: string | null
+}
+
+export interface ChecklistItem {
+  text: string
+  done: boolean
 }
 
 export interface TradeImage {
@@ -113,6 +122,14 @@ export interface TradeStats {
   bestTrade: number
   worstTrade: number
   currentStreak: number
+  maxWinStreak: number
+  maxLossStreak: number
+  maxDrawdown: number
+  maxDrawdownPct: number
+  avgHoldMinutes: number | null
+  expectancyR: number | null
+  sqn: number | null
+  avgDiscipline: number | null
   equityCurve: { t: number; equity: number; pnl: number }[]
 }
 
@@ -136,4 +153,20 @@ export interface Settings {
   defaultRiskPct: number
   quickLinks: QuickLink[]
   theme: 'light' | 'dark'
+  checklistTemplate: string[]
+}
+
+export type Bias = 'long' | 'short' | 'neutral'
+
+export interface WatchItem {
+  id: string
+  symbol: string
+  bias: Bias
+  entry: number | null
+  target: number | null
+  stop: number | null
+  note: string | null
+  pinned: boolean
+  createdAt: number
+  updatedAt: number
 }

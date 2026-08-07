@@ -106,6 +106,37 @@ const MIGRATIONS: { id: number; name: string; sql: string }[] = [
       ALTER TABLE trades ADD COLUMN mistakes  TEXT;
     `,
   },
+  {
+    id: 3,
+    name: 'checklist_mae_watchlist',
+    sql: `
+      -- Pre-trade discipline checklist (JSON [{text,done}]) + confidence.
+      ALTER TABLE trades ADD COLUMN checklist  TEXT;
+      ALTER TABLE trades ADD COLUMN confidence INTEGER;         -- 1..5 pre-trade
+      -- Maximum adverse / favourable excursion (as price levels reached).
+      ALTER TABLE trades ADD COLUMN mae        REAL;
+      ALTER TABLE trades ADD COLUMN mfe        REAL;
+
+      -- Default checklist items used to prefill new trades (JSON string[]).
+      ALTER TABLE settings ADD COLUMN checklist_template TEXT;
+
+      -- Watchlist: instruments to keep an eye on, with a bias and levels.
+      CREATE TABLE watchlist (
+        id         TEXT PRIMARY KEY,
+        user_id    TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        symbol     TEXT NOT NULL,
+        bias       TEXT NOT NULL DEFAULT 'neutral',  -- long | short | neutral
+        entry      REAL,
+        target     REAL,
+        stop       REAL,
+        note       TEXT,
+        pinned     INTEGER NOT NULL DEFAULT 0,
+        created_at INTEGER NOT NULL,
+        updated_at INTEGER NOT NULL
+      );
+      CREATE INDEX idx_watchlist_user ON watchlist(user_id, pinned DESC, updated_at DESC);
+    `,
+  },
 ]
 
 db.exec(`CREATE TABLE IF NOT EXISTS schema_migrations (

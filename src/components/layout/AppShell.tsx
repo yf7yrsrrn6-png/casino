@@ -15,6 +15,7 @@ import {
   IconLogout,
   IconClose,
   IconTrend,
+  IconTarget,
 } from '@/components/ui/icons'
 import { useSession } from '@/store/useSession'
 import { useSettings } from '@/store/useSettings'
@@ -34,6 +35,7 @@ const SECTIONS: { title: string; items: NavEntry[] }[] = [
       { to: '/', label: 'Огляд', icon: IconDashboard, end: true },
       { to: '/journal', label: 'Журнал позицій', icon: IconJournal },
       { to: '/analytics', label: 'Аналітика', icon: IconTrend },
+      { to: '/watchlist', label: 'Watchlist', icon: IconTarget },
     ],
   },
   {
@@ -50,6 +52,7 @@ const PAGE_TITLES: Record<string, string> = {
   '/': 'Огляд',
   '/journal': 'Журнал позицій',
   '/analytics': 'Аналітика',
+  '/watchlist': 'Watchlist',
   '/plans': 'Плани та аналіз',
   '/calculators': 'Калькулятори',
   '/settings': 'Налаштування',

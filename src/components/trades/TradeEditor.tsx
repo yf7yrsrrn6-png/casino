@@ -12,7 +12,10 @@ import {
   StarRating,
   TagInput,
   NumberInput,
+  ChecklistEditor,
+  ConfidencePicker,
 } from './parts'
+import { useSettings } from '@/store/useSettings'
 import { toDatetimeLocal, fromDatetimeLocal } from '@/lib/format'
 
 const EMPTY: TradeFormInput = {
@@ -36,6 +39,10 @@ const EMPTY: TradeFormInput = {
   timeframe: null,
   emotion: null,
   mistakes: null,
+  checklist: [],
+  confidence: null,
+  mae: null,
+  mfe: null,
   openedAt: Date.now(),
   closedAt: null,
 }
@@ -49,6 +56,7 @@ export function TradeEditor() {
   const editing = useTrades((s) => s.editing)
   const close = useTrades((s) => s.closeEditor)
   const save = useTrades((s) => s.save)
+  const checklistTemplate = useSettings((s) => s.settings.checklistTemplate)
 
   const [form, setForm] = useState<TradeFormInput>(EMPTY)
   const [images, setImages] = useState<TradeImage[]>([])
@@ -80,6 +88,10 @@ export function TradeEditor() {
         timeframe: editing.timeframe,
         emotion: editing.emotion,
         mistakes: editing.mistakes,
+        checklist: editing.checklist ?? [],
+        confidence: editing.confidence,
+        mae: editing.mae,
+        mfe: editing.mfe,
         openedAt: editing.openedAt,
         closedAt: editing.closedAt,
       })
@@ -89,10 +101,14 @@ export function TradeEditor() {
         .then(({ images }) => setImages(images))
         .catch(() => setImages([]))
     } else {
-      setForm({ ...EMPTY, openedAt: Date.now() })
+      setForm({
+        ...EMPTY,
+        openedAt: Date.now(),
+        checklist: checklistTemplate.map((text) => ({ text, done: false })),
+      })
       setImages([])
     }
-  }, [open, editing])
+  }, [open, editing, checklistTemplate])
 
   const set = <K extends keyof TradeFormInput>(key: K, value: TradeFormInput[K]) =>
     setForm((f) => ({ ...f, [key]: value }))
@@ -221,6 +237,12 @@ export function TradeEditor() {
               <Field label="Результат P&L ($)" hint="+ прибуток / − збиток">
                 <NumberInput value={form.pnl} onChange={(v) => set('pnl', v)} prefix="$" placeholder="240" />
               </Field>
+              <Field label="MAE" hint="макс. проти позиції">
+                <NumberInput value={form.mae} onChange={(v) => set('mae', v)} placeholder="1.0835" />
+              </Field>
+              <Field label="MFE" hint="макс. за позицією">
+                <NumberInput value={form.mfe} onChange={(v) => set('mfe', v)} placeholder="1.0925" />
+              </Field>
             </div>
           )}
         </div>
@@ -298,6 +320,11 @@ export function TradeEditor() {
             )}
           </div>
 
+          <div>
+            <div className="mb-1.5 text-[13px] font-medium text-muted">Впевненість до входу</div>
+            <ConfidencePicker value={form.confidence} onChange={(v) => set('confidence', v)} />
+          </div>
+
           <Field label="Теги">
             <TagInput tags={form.tags} onChange={(t) => set('tags', t)} />
           </Field>
@@ -338,6 +365,18 @@ export function TradeEditor() {
               </Field>
             </>
           )}
+        </div>
+
+        {/* Full-width — pre-trade discipline checklist */}
+        <div className="lg:col-span-2">
+          <div className="mb-2 text-[13px] font-medium text-muted">
+            Пре-трейд чеклист (дисципліна)
+          </div>
+          <ChecklistEditor
+            items={form.checklist}
+            onChange={(c) => set('checklist', c)}
+            template={checklistTemplate}
+          />
         </div>
 
         {/* Full-width — chart analysis images */}

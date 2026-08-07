@@ -10,7 +10,7 @@ import { DirectionBadge, StatusBadge, PnL, RValue } from '@/components/ui/Badge'
 import { EmptyState, PageLoader } from '@/components/ui/Feedback'
 import { EquityChart } from '@/components/dashboard/EquityChart'
 import { IconPlus, IconTrend, IconTarget, IconScale, IconJournal } from '@/components/ui/icons'
-import { money, pct, num, price, formatDate } from '@/lib/format'
+import { money, pct, num, price, formatDate, formatDuration } from '@/lib/format'
 
 export function Dashboard() {
   const trades = useTrades((s) => s.trades)
@@ -140,6 +140,65 @@ export function Dashboard() {
               </Card>
             </div>
           </div>
+
+          {/* Advanced metrics strip */}
+          <Card>
+            <CardHeader title="Розширені метрики" subtitle="Показники якості системи" />
+            <div className="grid grid-cols-2 gap-px overflow-hidden rounded-b-2xl bg-border sm:grid-cols-3 lg:grid-cols-6">
+              {[
+                {
+                  label: 'Макс. просадка',
+                  value: money(stats?.maxDrawdown, currency),
+                  sub: pct(stats?.maxDrawdownPct),
+                  tone: 'loss' as const,
+                },
+                {
+                  label: 'Expectancy',
+                  value: stats?.expectancyR != null ? `${stats.expectancyR > 0 ? '+' : ''}${stats.expectancyR}R` : '—',
+                  sub: 'на угоду',
+                  tone: (stats?.expectancyR ?? 0) >= 0 ? ('profit' as const) : ('loss' as const),
+                },
+                {
+                  label: 'SQN',
+                  value: stats?.sqn != null ? stats.sqn.toFixed(2) : '—',
+                  sub: 'якість системи',
+                  tone: 'default' as const,
+                },
+                {
+                  label: 'Сер. час у ринку',
+                  value: formatDuration(stats?.avgHoldMinutes),
+                  sub: 'на угоду',
+                  tone: 'default' as const,
+                },
+                {
+                  label: 'Серії',
+                  value: `${stats?.maxWinStreak ?? 0} / ${stats?.maxLossStreak ?? 0}`,
+                  sub: 'макс П / З',
+                  tone: 'default' as const,
+                },
+                {
+                  label: 'Дисципліна',
+                  value: stats?.avgDiscipline != null ? `${stats.avgDiscipline}%` : '—',
+                  sub: 'чеклист',
+                  tone: 'default' as const,
+                },
+              ].map((m) => (
+                <div key={m.label} className="bg-surface p-4">
+                  <div className="text-[11px] font-medium uppercase tracking-wide text-subtle">
+                    {m.label}
+                  </div>
+                  <div
+                    className={`tnum mt-1.5 text-lg font-bold ${
+                      m.tone === 'profit' ? 'text-profit' : m.tone === 'loss' ? 'text-loss' : 'text-text'
+                    }`}
+                  >
+                    {m.value}
+                  </div>
+                  <div className="text-[11px] text-subtle">{m.sub}</div>
+                </div>
+              ))}
+            </div>
+          </Card>
 
           {/* Open positions + recent */}
           <div className="grid gap-5 lg:grid-cols-2">

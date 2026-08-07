@@ -238,6 +238,74 @@ export const IconArrowRight = (p: IconProps) => (
   </Base>
 )
 
+export const IconPen = (p: IconProps) => (
+  <Base {...p}>
+    <path d="M12 20h9" />
+    <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z" />
+  </Base>
+)
+
+export const IconLineTool = (p: IconProps) => (
+  <Base {...p}>
+    <path d="M5 19 19 5" />
+  </Base>
+)
+
+export const IconArrowTool = (p: IconProps) => (
+  <Base {...p}>
+    <path d="M5 19 19 5" />
+    <path d="M11 5h8v8" />
+  </Base>
+)
+
+export const IconSquare = (p: IconProps) => (
+  <Base {...p}>
+    <rect x="4" y="4" width="16" height="16" rx="2" />
+  </Base>
+)
+
+export const IconCircle = (p: IconProps) => (
+  <Base {...p}>
+    <circle cx="12" cy="12" r="8" />
+  </Base>
+)
+
+export const IconTextTool = (p: IconProps) => (
+  <Base {...p}>
+    <path d="M4 6V4h16v2M9 20h6M12 4v16" />
+  </Base>
+)
+
+export const IconEraser = (p: IconProps) => (
+  <Base {...p}>
+    <path d="M4 15 12 7l5 5-6 6H7z" />
+    <path d="M9 20h11" />
+  </Base>
+)
+
+export const IconUndo = (p: IconProps) => (
+  <Base {...p}>
+    <path d="M9 14 4 9l5-5" />
+    <path d="M4 9h11a5 5 0 0 1 0 10h-3" />
+  </Base>
+)
+
+export const IconRedo = (p: IconProps) => (
+  <Base {...p}>
+    <path d="m15 14 5-5-5-5" />
+    <path d="M20 9H9a5 5 0 0 0 0 10h3" />
+  </Base>
+)
+
+export const IconDraw = (p: IconProps) => (
+  <Base {...p}>
+    <path d="M12 19l7-7 3 3-7 7-3-3z" />
+    <path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z" />
+    <path d="M2 2l7.586 7.586" />
+    <circle cx="11" cy="11" r="2" />
+  </Base>
+)
+
 export const IconStar = (p: IconProps) => (
   <Base fill="none" {...p}>
     <path d="m12 3 2.7 5.5 6 .9-4.35 4.24 1.03 6-5.38-2.82L6.6 19.6l1.03-6L3.3 9.4l6-.9z" />

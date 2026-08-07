@@ -30,6 +30,7 @@ export function Settings() {
   const [currency, setCurrency] = useState(settings.currency)
   const [risk, setRisk] = useState<number | null>(settings.defaultRiskPct)
   const [links, setLinks] = useState<QuickLink[]>(settings.quickLinks)
+  const [checklist, setChecklist] = useState<string[]>(settings.checklistTemplate)
   const [savingDefaults, setSavingDefaults] = useState(false)
   const [savedDefaults, setSavedDefaults] = useState(false)
 
@@ -38,6 +39,7 @@ export function Settings() {
     setCurrency(settings.currency)
     setRisk(settings.defaultRiskPct)
     setLinks(settings.quickLinks)
+    setChecklist(settings.checklistTemplate)
   }, [settings])
 
   // Profile
@@ -60,6 +62,7 @@ export function Settings() {
         currency,
         defaultRiskPct: risk ?? 0,
         quickLinks: links.filter((l) => l.label.trim() && l.url.trim()),
+        checklistTemplate: checklist.map((c) => c.trim()).filter(Boolean),
       })
       setSavedDefaults(true)
       setTimeout(() => setSavedDefaults(false), 2500)
@@ -174,6 +177,48 @@ export function Settings() {
               {links.length === 0 && (
                 <p className="text-[12px] text-subtle">
                   Додайте посилання на TradingView, Forex Factory тощо — вони з’являться у шапці.
+                </p>
+              )}
+            </div>
+          </div>
+
+          {/* Pre-trade checklist template */}
+          <div>
+            <div className="mb-2 flex items-center justify-between">
+              <span className="text-[13px] font-medium text-muted">
+                Пре-трейд чеклист (шаблон для нових угод)
+              </span>
+              <button
+                onClick={() => setChecklist([...checklist, ''])}
+                className="inline-flex items-center gap-1 text-[13px] font-semibold text-accent hover:underline"
+              >
+                <IconPlus width={14} height={14} /> Додати пункт
+              </button>
+            </div>
+            <div className="space-y-2">
+              {checklist.map((item, i) => (
+                <div key={i} className="flex items-center gap-2">
+                  <Input
+                    value={item}
+                    onChange={(e) => {
+                      const next = [...checklist]
+                      next[i] = e.target.value
+                      setChecklist(next)
+                    }}
+                    placeholder="напр. Тренд на боці угоди"
+                    className="flex-1"
+                  />
+                  <button
+                    onClick={() => setChecklist(checklist.filter((_, j) => j !== i))}
+                    className="grid h-10 w-10 shrink-0 place-items-center rounded-lg text-subtle hover:text-loss"
+                  >
+                    <IconTrash width={16} height={16} />
+                  </button>
+                </div>
+              ))}
+              {checklist.length === 0 && (
+                <p className="text-[12px] text-subtle">
+                  Ці пункти автоматично додаються до кожної нової позиції для контролю дисципліни.
                 </p>
               )}
             </div>

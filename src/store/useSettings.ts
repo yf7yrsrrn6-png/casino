@@ -7,6 +7,7 @@ const DEFAULTS: Settings = {
   defaultRiskPct: 1,
   quickLinks: [],
   theme: 'dark',
+  checklistTemplate: [],
 }
 
 interface SettingsState {

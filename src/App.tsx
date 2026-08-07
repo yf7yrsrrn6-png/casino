@@ -12,6 +12,7 @@ import { Dashboard } from '@/pages/Dashboard'
 import { Journal } from '@/pages/Journal'
 import { TradeDetail } from '@/pages/TradeDetail'
 import { Analytics } from '@/pages/Analytics'
+import { Watchlist } from '@/pages/Watchlist'
 import { Plans } from '@/pages/Plans'
 import { Calculators } from '@/pages/Calculators'
 import { Settings } from '@/pages/Settings'
@@ -32,6 +33,7 @@ function AuthedApp() {
         <Route path="/journal" element={<Journal />} />
         <Route path="/journal/:id" element={<TradeDetail />} />
         <Route path="/analytics" element={<Analytics />} />
+        <Route path="/watchlist" element={<Watchlist />} />
         <Route path="/plans" element={<Plans />} />
         <Route path="/plans/:id" element={<Plans />} />
         <Route path="/calculators" element={<Calculators />} />

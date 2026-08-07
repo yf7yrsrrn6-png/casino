@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { api, type TradeImage } from '@/lib/api'
-import { IconImage, IconTrash, IconClose } from '@/components/ui/icons'
+import { IconImage, IconTrash, IconClose, IconPen, IconDraw } from '@/components/ui/icons'
 import { Spinner } from '@/components/ui/Feedback'
+import { DrawingModal } from './DrawingModal'
 
 function fileToDataUrl(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -32,8 +33,22 @@ export function ImageUploader({
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [lightbox, setLightbox] = useState<string | null>(null)
+  const [draw, setDraw] = useState<{ open: boolean; bg?: string }>({ open: false })
+  const [drawSaving, setDrawSaving] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
   const disabled = !tradeId && !planId
+
+  const uploadDataUrl = useCallback(
+    async (dataUrl: string) => {
+      const { image } = await api.post<{ image: TradeImage }>('/images', {
+        dataUrl,
+        tradeId: tradeId ?? null,
+        planId: planId ?? null,
+      })
+      onChange([...images, image])
+    },
+    [tradeId, planId, images, onChange],
+  )
 
   const upload = useCallback(
     async (files: FileList | File[]) => {
@@ -96,13 +111,23 @@ export function ImageUploader({
                 className="h-full w-full cursor-zoom-in object-cover"
                 onClick={() => setLightbox(img.url)}
               />
-              <button
-                onClick={() => void remove(img.id)}
-                className="absolute right-1.5 top-1.5 grid h-7 w-7 place-items-center rounded-lg bg-black/55 text-white opacity-0 transition-opacity hover:bg-loss group-hover:opacity-100"
-                aria-label="Видалити зображення"
-              >
-                <IconTrash width={14} height={14} />
-              </button>
+              <div className="absolute right-1.5 top-1.5 flex gap-1 opacity-0 transition-opacity group-hover:opacity-100">
+                <button
+                  onClick={() => setDraw({ open: true, bg: img.url })}
+                  className="grid h-7 w-7 place-items-center rounded-lg bg-black/55 text-white hover:bg-accent"
+                  aria-label="Розмітити графік"
+                  title="Розмітити"
+                >
+                  <IconPen width={13} height={13} />
+                </button>
+                <button
+                  onClick={() => void remove(img.id)}
+                  className="grid h-7 w-7 place-items-center rounded-lg bg-black/55 text-white hover:bg-loss"
+                  aria-label="Видалити зображення"
+                >
+                  <IconTrash width={13} height={13} />
+                </button>
+              </div>
             </div>
           ))}
         </div>
@@ -147,7 +172,36 @@ export function ImageUploader({
         </div>
       )}
 
+      {!disabled && (
+        <button
+          type="button"
+          onClick={() => setDraw({ open: true })}
+          className="focus-ring mt-2 inline-flex items-center gap-1.5 rounded-lg border border-border bg-surface-2 px-3 py-1.5 text-[13px] font-semibold text-text transition-colors hover:border-accent-line hover:text-accent"
+        >
+          <IconDraw width={15} height={15} /> Намалювати нотатку
+        </button>
+      )}
+
       {error && <p className="mt-2 text-[12px] font-medium text-loss">{error}</p>}
+
+      <DrawingModal
+        open={draw.open}
+        backgroundUrl={draw.bg}
+        title={draw.bg ? 'Розмітка графіка' : 'Нотатка-малюнок'}
+        saving={drawSaving}
+        onClose={() => setDraw({ open: false })}
+        onSave={async (dataUrl) => {
+          setDrawSaving(true)
+          try {
+            await uploadDataUrl(dataUrl)
+            setDraw({ open: false })
+          } catch {
+            setError('Не вдалося зберегти малюнок.')
+          } finally {
+            setDrawSaving(false)
+          }
+        }}
+      />
 
       {lightbox && (
         <div

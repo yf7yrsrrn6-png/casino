@@ -42,6 +42,14 @@ const tradeSchema = z.object({
   timeframe: z.string().trim().max(20).nullable().optional(),
   emotion: z.string().trim().max(60).nullable().optional(),
   mistakes: z.string().max(2000).nullable().optional(),
+  checklist: z
+    .array(z.object({ text: z.string().trim().min(1).max(120), done: z.boolean() }))
+    .max(40)
+    .nullable()
+    .optional(),
+  confidence: z.number().int().min(1).max(5).nullable().optional(),
+  mae: num.nullable().optional(),
+  mfe: num.nullable().optional(),
   openedAt: z.number().int().nullable().optional(),
   closedAt: z.number().int().nullable().optional(),
 })

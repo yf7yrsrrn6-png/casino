@@ -116,6 +116,37 @@ export function Analytics() {
     [closed],
   )
 
+  // R-multiple distribution.
+  const rDist = useMemo(() => {
+    const buckets = [
+      { label: '≤−2R', lo: -Infinity, hi: -2, win: false },
+      { label: '−2…−1', lo: -2, hi: -1, win: false },
+      { label: '−1…0', lo: -1, hi: 0, win: false },
+      { label: '0…1', lo: 0, hi: 1, win: true },
+      { label: '1…2', lo: 1, hi: 2, win: true },
+      { label: '2…3', lo: 2, hi: 3, win: true },
+      { label: '≥3R', lo: 3, hi: Infinity, win: true },
+    ].map((b) => ({ ...b, count: 0 }))
+    for (const t of closed) {
+      if (t.rr == null) continue
+      const b = buckets.find((x) => t.rr! >= x.lo && t.rr! < x.hi) ?? buckets[buckets.length - 1]
+      b.count++
+    }
+    return buckets
+  }, [closed])
+
+  // Performance by hour of day (close time).
+  const byHour = useMemo(() => {
+    const hours = Array.from({ length: 24 }, (_, h) => ({ h, net: 0, count: 0 }))
+    for (const t of closed) {
+      if (!t.closedAt) continue
+      const h = new Date(t.closedAt).getHours()
+      hours[h].net += net(t)
+      hours[h].count++
+    }
+    return hours
+  }, [closed])
+
   if (!loaded) return <PageLoader />
   if (closed.length === 0)
     return (
@@ -173,6 +204,61 @@ export function Analytics() {
           />
         </div>
       </Card>
+
+      {/* Distribution + time-of-day */}
+      <div className="grid gap-5 lg:grid-cols-2">
+        <Card>
+          <CardHeader title="Розподіл R-мультиплікаторів" subtitle="Скільки угод у кожному діапазоні R" />
+          <div className="flex h-52 items-end gap-2 px-5 py-4">
+            {(() => {
+              const maxC = Math.max(1, ...rDist.map((b) => b.count))
+              return rDist.map((b) => (
+                <div key={b.label} className="flex flex-1 flex-col items-center gap-1.5">
+                  <span className="tnum text-[11px] font-semibold text-muted">{b.count || ''}</span>
+                  <div className="flex w-full flex-1 items-end">
+                    <div
+                      className={`w-full rounded-t-md ${b.win ? 'bg-profit' : 'bg-loss'}`}
+                      style={{ height: `${(b.count / maxC) * 100}%`, opacity: b.win ? 0.9 : 0.55, minHeight: b.count ? 4 : 0 }}
+                    />
+                  </div>
+                  <span className="text-[10px] text-subtle">{b.label}</span>
+                </div>
+              ))
+            })()}
+          </div>
+        </Card>
+
+        <Card>
+          <CardHeader title="Результат за годиною доби" subtitle="Сумарний P&L за часом закриття" />
+          <div className="flex h-52 items-center gap-[3px] px-5 py-4">
+            {(() => {
+              const maxAbs = Math.max(1, ...byHour.map((h) => Math.abs(h.net)))
+              return byHour.map((h) => {
+                const pos = h.net >= 0
+                const heightPct = (Math.abs(h.net) / maxAbs) * 45
+                return (
+                  <div key={h.h} className="group relative flex flex-1 flex-col items-center justify-center" title={`${h.h}:00 · ${money(h.net, currency, true)} · ${h.count} угод`}>
+                    <div className="flex h-[45%] w-full items-end">
+                      {pos && (
+                        <div className="w-full rounded-t bg-profit" style={{ height: `${heightPct * 2}%`, opacity: 0.9, minHeight: h.count ? 3 : 0 }} />
+                      )}
+                    </div>
+                    <div className="h-px w-full bg-border" />
+                    <div className="flex h-[45%] w-full items-start">
+                      {!pos && (
+                        <div className="w-full rounded-b bg-loss" style={{ height: `${heightPct * 2}%`, opacity: 0.55, minHeight: h.count ? 3 : 0 }} />
+                      )}
+                    </div>
+                    {h.h % 6 === 0 && (
+                      <span className="absolute -bottom-4 text-[9px] text-subtle">{h.h}</span>
+                    )}
+                  </div>
+                )
+              })
+            })()}
+          </div>
+        </Card>
+      </div>
 
       {/* Breakdowns */}
       <div className="grid gap-5 lg:grid-cols-2">

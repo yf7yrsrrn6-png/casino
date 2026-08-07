@@ -25,6 +25,10 @@ export interface TradeRow {
   timeframe: string | null
   emotion: string | null
   mistakes: string | null
+  checklist: string | null
+  confidence: number | null
+  mae: number | null
+  mfe: number | null
   opened_at: number | null
   closed_at: number | null
   created_at: number
@@ -53,14 +57,36 @@ export interface TradeInput {
   timeframe?: string | null
   emotion?: string | null
   mistakes?: string | null
+  checklist?: ChecklistItem[] | null
+  confidence?: number | null
+  mae?: number | null
+  mfe?: number | null
   openedAt?: number | null
   closedAt?: number | null
+}
+
+export interface ChecklistItem {
+  text: string
+  done: boolean
 }
 
 /** Realized R multiple: profit divided by the money risked. */
 function computeRR(pnl: number | null | undefined, risk: number | null | undefined): number | null {
   if (pnl == null || risk == null || risk === 0) return null
   return Number((pnl / Math.abs(risk)).toFixed(2))
+}
+
+function parseChecklist(raw: string | null): ChecklistItem[] {
+  if (!raw) return []
+  try {
+    const parsed = JSON.parse(raw)
+    if (!Array.isArray(parsed)) return []
+    return parsed
+      .filter((i) => i && typeof i.text === 'string')
+      .map((i) => ({ text: String(i.text), done: Boolean(i.done) }))
+  } catch {
+    return []
+  }
 }
 
 export function serializeTrade(row: TradeRow, coverUrl: string | null = null) {
@@ -93,6 +119,10 @@ export function serializeTrade(row: TradeRow, coverUrl: string | null = null) {
     timeframe: row.timeframe,
     emotion: row.emotion,
     mistakes: row.mistakes,
+    checklist: parseChecklist(row.checklist),
+    confidence: row.confidence,
+    mae: row.mae,
+    mfe: row.mfe,
     openedAt: row.opened_at,
     closedAt: row.closed_at,
     createdAt: row.created_at,
@@ -155,8 +185,9 @@ export function createTrade(userId: string, input: TradeInput): TradeRow {
     `INSERT INTO trades (
       id, user_id, symbol, direction, status, entry_price, exit_price, stop_loss, take_profit,
       size, risk_amount, pnl, fees, rr, session, setup, plan, notes, rating, tags,
-      timeframe, emotion, mistakes, opened_at, closed_at, created_at, updated_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      timeframe, emotion, mistakes, checklist, confidence, mae, mfe,
+      opened_at, closed_at, created_at, updated_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
   ).run(
     id,
     userId,
@@ -181,6 +212,10 @@ export function createTrade(userId: string, input: TradeInput): TradeRow {
     input.timeframe ?? null,
     input.emotion ?? null,
     input.mistakes ?? null,
+    input.checklist ? JSON.stringify(input.checklist) : null,
+    input.confidence ?? null,
+    input.mae ?? null,
+    input.mfe ?? null,
     input.openedAt ?? ts,
     status === 'closed' ? (input.closedAt ?? ts) : (input.closedAt ?? null),
     ts,
@@ -212,6 +247,7 @@ export function updateTrade(
       symbol = ?, direction = ?, status = ?, entry_price = ?, exit_price = ?, stop_loss = ?,
       take_profit = ?, size = ?, risk_amount = ?, pnl = ?, fees = ?, rr = ?, session = ?,
       setup = ?, plan = ?, notes = ?, rating = ?, tags = ?, timeframe = ?, emotion = ?, mistakes = ?,
+      checklist = ?, confidence = ?, mae = ?, mfe = ?,
       opened_at = ?, closed_at = ?, updated_at = ?
      WHERE id = ? AND user_id = ?`,
   ).run(
@@ -236,6 +272,14 @@ export function updateTrade(
     input.timeframe !== undefined ? input.timeframe : existing.timeframe,
     input.emotion !== undefined ? input.emotion : existing.emotion,
     input.mistakes !== undefined ? input.mistakes : existing.mistakes,
+    input.checklist !== undefined
+      ? input.checklist
+        ? JSON.stringify(input.checklist)
+        : null
+      : existing.checklist,
+    input.confidence !== undefined ? input.confidence : existing.confidence,
+    input.mae !== undefined ? input.mae : existing.mae,
+    input.mfe !== undefined ? input.mfe : existing.mfe,
     input.openedAt !== undefined ? input.openedAt : existing.opened_at,
     closedAt,
     now(),
@@ -269,6 +313,14 @@ export interface TradeStats {
   bestTrade: number
   worstTrade: number
   currentStreak: number // +N winning streak, -N losing streak
+  maxWinStreak: number
+  maxLossStreak: number
+  maxDrawdown: number // deepest peak-to-trough equity drop (money)
+  maxDrawdownPct: number
+  avgHoldMinutes: number | null
+  expectancyR: number | null // average R multiple
+  sqn: number | null // Van Tharp System Quality Number
+  avgDiscipline: number | null // average checklist completion %
   equityCurve: { t: number; equity: number; pnl: number }[]
 }
 
@@ -297,25 +349,78 @@ export function computeStats(userId: string, startingBalance: number): TradeStat
   let equity = startingBalance
   equityCurve.push({ t: closed[0]?.closed_at ?? Date.now(), equity, pnl: 0 })
 
+  let peakEquity = equity
+  let maxDrawdown = 0
+  let maxDrawdownPct = 0
+  let holdSum = 0
+  let holdCount = 0
+  const rValues: number[] = []
+  let disciplineSum = 0
+  let disciplineCount = 0
+  let curWin = 0
+  let curLoss = 0
+  let maxWin = 0
+  let maxLoss = 0
+
   for (const t of closed) {
     const net = (t.pnl ?? 0) - (t.fees ?? 0)
     if (net > 0) {
       wins++
       grossProfit += net
+      curWin++
+      curLoss = 0
+      if (curWin > maxWin) maxWin = curWin
     } else if (net < 0) {
       losses++
       grossLoss += Math.abs(net)
+      curLoss++
+      curWin = 0
+      if (curLoss > maxLoss) maxLoss = curLoss
     } else {
       breakeven++
+      curWin = 0
+      curLoss = 0
     }
     if (net > best) best = net
     if (net < worst) worst = net
     if (t.rr != null) {
       rrSum += t.rr
       rrCount++
+      rValues.push(t.rr)
     }
+    // Hold time (minutes) when both timestamps exist.
+    if (t.opened_at && t.closed_at && t.closed_at > t.opened_at) {
+      holdSum += (t.closed_at - t.opened_at) / 60000
+      holdCount++
+    }
+    // Discipline from the pre-trade checklist completion %.
+    const items = parseChecklist(t.checklist)
+    if (items.length) {
+      disciplineSum += (items.filter((i) => i.done).length / items.length) * 100
+      disciplineCount++
+    }
+
     equity += net
+    if (equity > peakEquity) peakEquity = equity
+    const dd = peakEquity - equity
+    if (dd > maxDrawdown) maxDrawdown = dd
+    const ddPct = peakEquity > 0 ? (dd / peakEquity) * 100 : 0
+    if (ddPct > maxDrawdownPct) maxDrawdownPct = ddPct
     equityCurve.push({ t: t.closed_at ?? t.created_at, equity, pnl: net })
+  }
+
+  // Van Tharp SQN = mean(R) / stdev(R) * sqrt(n).
+  let expectancyR: number | null = null
+  let sqn: number | null = null
+  if (rValues.length) {
+    const meanR = rValues.reduce((s, r) => s + r, 0) / rValues.length
+    expectancyR = meanR
+    if (rValues.length > 1) {
+      const variance =
+        rValues.reduce((s, r) => s + (r - meanR) ** 2, 0) / (rValues.length - 1)
+      const std = Math.sqrt(variance)
+      if (std > 0) sqn = (meanR / std) * Math.sqrt(rValues.length)
+    }
   }
 
   const closedTrades = closed.length
@@ -356,6 +461,14 @@ export function computeStats(userId: string, startingBalance: number): TradeStat
     bestTrade: Number(best.toFixed(2)),
     worstTrade: Number(worst.toFixed(2)),
     currentStreak: streak,
+    maxWinStreak: maxWin,
+    maxLossStreak: maxLoss,
+    maxDrawdown: Number(maxDrawdown.toFixed(2)),
+    maxDrawdownPct: Number(maxDrawdownPct.toFixed(1)),
+    avgHoldMinutes: holdCount ? Number((holdSum / holdCount).toFixed(0)) : null,
+    expectancyR: expectancyR == null ? null : Number(expectancyR.toFixed(2)),
+    sqn: sqn == null ? null : Number(sqn.toFixed(2)),
+    avgDiscipline: disciplineCount ? Number((disciplineSum / disciplineCount).toFixed(0)) : null,
     equityCurve,
   }
 }

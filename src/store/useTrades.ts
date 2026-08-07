@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import { api, type Trade, type TradeStats } from '@/lib/api'
+import { api, type Trade, type TradeStats, type ChecklistItem } from '@/lib/api'
 
 export interface TradeFormInput {
   symbol: string
@@ -22,6 +22,10 @@ export interface TradeFormInput {
   timeframe: string | null
   emotion: string | null
   mistakes: string | null
+  checklist: ChecklistItem[]
+  confidence: number | null
+  mae: number | null
+  mfe: number | null
   openedAt: number | null
   closedAt: number | null
 }

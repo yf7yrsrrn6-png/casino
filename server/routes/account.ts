@@ -52,6 +52,7 @@ const settingsSchema = z.object({
   defaultRiskPct: z.number().min(0).max(100).optional(),
   quickLinks: z.array(quickLinkSchema).max(20).optional(),
   theme: z.enum(['light', 'dark']).optional(),
+  checklistTemplate: z.array(z.string().trim().min(1).max(120)).max(40).optional(),
 })
 accountRouter.put(
   '/settings',

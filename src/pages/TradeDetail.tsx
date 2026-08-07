@@ -8,7 +8,7 @@ import { Card } from '@/components/ui/Card'
 import { DirectionBadge, StatusBadge, PnL, RValue } from '@/components/ui/Badge'
 import { PageLoader, EmptyState, ConfirmDialog } from '@/components/ui/Feedback'
 import { ImageUploader } from '@/components/media/ImageUploader'
-import { IconEdit, IconTrash, IconChevronRight, IconStar } from '@/components/ui/icons'
+import { IconEdit, IconTrash, IconChevronRight, IconStar, IconCheck } from '@/components/ui/icons'
 import { price, num, money, formatDateTime } from '@/lib/format'
 
 function Detail({ label, value }: { label: string; value: React.ReactNode }) {
@@ -66,6 +66,23 @@ export function TradeDetail() {
 
   const netPnl = (trade.pnl ?? 0) - (trade.fees ?? 0)
   const closed = trade.status === 'closed'
+
+  // How much of the favourable excursion the exit captured.
+  let captured: number | null = null
+  if (closed && trade.entryPrice != null && trade.exitPrice != null && trade.mfe != null) {
+    const favMove =
+      trade.direction === 'long' ? trade.mfe - trade.entryPrice : trade.entryPrice - trade.mfe
+    const realized =
+      trade.direction === 'long'
+        ? trade.exitPrice - trade.entryPrice
+        : trade.entryPrice - trade.exitPrice
+    if (favMove > 0) captured = Math.max(0, Math.min(100, (realized / favMove) * 100))
+  }
+
+  const checklistDone = trade.checklist.filter((c) => c.done).length
+  const discipline = trade.checklist.length
+    ? Math.round((checklistDone / trade.checklist.length) * 100)
+    : null
 
   return (
     <div className="space-y-5">
@@ -133,6 +150,9 @@ export function TradeDetail() {
             <Detail label="Обсяг" value={num(trade.size)} />
             <Detail label="Ризик" value={money(trade.riskAmount, currency)} />
             <Detail label="Комісія" value={money(trade.fees, currency)} />
+            {closed && trade.mae != null && <Detail label="MAE" value={price(trade.mae)} />}
+            {closed && trade.mfe != null && <Detail label="MFE" value={price(trade.mfe)} />}
+            {captured != null && <Detail label="Захоплено ходу" value={`${captured.toFixed(0)}%`} />}
             {closed && <Detail label="Чистий P&L" value={<PnL value={netPnl} currency={currency} />} />}
           </div>
         </Card>
@@ -158,6 +178,12 @@ export function TradeDetail() {
             <div>
               <div className="text-[12px] text-subtle">Емоція / стан</div>
               <div className="mt-0.5 text-[14px] font-medium text-text">{trade.emotion ?? '—'}</div>
+            </div>
+            <div>
+              <div className="text-[12px] text-subtle">Впевненість</div>
+              <div className="mt-0.5 text-[14px] font-medium text-text">
+                {trade.confidence != null ? `${trade.confidence}/5` : '—'}
+              </div>
             </div>
             <div>
               <div className="text-[12px] text-subtle">Відкрито</div>
@@ -211,6 +237,37 @@ export function TradeDetail() {
               <p className="whitespace-pre-wrap text-[14px] leading-relaxed text-text">
                 {trade.mistakes}
               </p>
+            </div>
+          )}
+
+          {trade.checklist.length > 0 && (
+            <div className="mt-5">
+              <div className="mb-2 flex items-center justify-between">
+                <span className="text-[12px] font-semibold uppercase tracking-wide text-subtle">
+                  Пре-трейд чеклист
+                </span>
+                {discipline != null && (
+                  <span className="tnum text-[12px] font-semibold text-muted">
+                    Дисципліна {discipline}% · {checklistDone}/{trade.checklist.length}
+                  </span>
+                )}
+              </div>
+              <div className="space-y-1.5">
+                {trade.checklist.map((item, i) => (
+                  <div key={i} className="flex items-center gap-2 text-[14px]">
+                    <span
+                      className={`grid h-4 w-4 shrink-0 place-items-center rounded border ${
+                        item.done
+                          ? 'border-white bg-white text-[#0a0b0d]'
+                          : 'border-border-strong text-transparent'
+                      }`}
+                    >
+                      <IconCheck width={11} height={11} />
+                    </span>
+                    <span className={item.done ? 'text-text' : 'text-subtle'}>{item.text}</span>
+                  </div>
+                ))}
+              </div>
             </div>
           )}
         </Card>

@@ -83,6 +83,21 @@ export function fromDatetimeLocal(value: string): number | null {
   return Number.isNaN(ts) ? null : ts
 }
 
+/** Human duration from minutes: "45хв", "3г 20хв", "2д 4г". */
+export function formatDuration(minutes: number | null | undefined): string {
+  if (minutes == null || Number.isNaN(minutes)) return '—'
+  const m = Math.round(minutes)
+  if (m < 60) return `${m}хв`
+  const h = Math.floor(m / 60)
+  if (h < 24) {
+    const rem = m % 60
+    return rem ? `${h}г ${rem}хв` : `${h}г`
+  }
+  const d = Math.floor(h / 24)
+  const remH = h % 24
+  return remH ? `${d}д ${remH}г` : `${d}д`
+}
+
 export function relativeTime(ts: number | null | undefined): string {
   if (!ts) return '—'
   const diff = Date.now() - ts
