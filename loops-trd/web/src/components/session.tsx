@@ -33,6 +33,7 @@ export interface MeResponse {
   requests?: Record<string, unknown>[];
   limits?: { single: number; daily: number; usedToday: number; tier: { minDeals: number }; nextTier: { minDeals: number; single: number; daily: number } | null };
   rating?: number | null;
+  telegram?: boolean;
 }
 
 export function useMe() {

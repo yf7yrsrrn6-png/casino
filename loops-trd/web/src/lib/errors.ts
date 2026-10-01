@@ -27,6 +27,17 @@ const CONTRACT_ERRORS: Record<string, string> = {
   ERC20InsufficientBalance: "Недостатньо mUSDT на гаманці.",
   ERC20InsufficientAllowance: "Не надано дозвіл на списання mUSDT — підтвердіть approve у гаманці.",
   FaucetCooldown: "Кран доступний раз на годину — спробуйте пізніше.",
+  AccessControlBadConfirmation: "Невірне підтвердження відмови від ролі.",
+  ERC20InvalidApprover: "Некоректна адреса власника токенів.",
+  ERC20InvalidReceiver: "Некоректна адреса отримувача токенів.",
+  ERC20InvalidSender: "Некоректна адреса відправника токенів.",
+  ERC20InvalidSpender: "Некоректна адреса, якій дається дозвіл.",
+  ExpectedPause: "Площадка не на паузі.",
+  InvalidShortString: "Некоректний рядок у контракті.",
+  StringTooLong: "Задовгий рядок у контракті.",
+  OwnableInvalidOwner: "Некоректна адреса власника.",
+  OwnableUnauthorizedAccount: "Цю дію може виконати лише власник контракту.",
+  SafeERC20FailedOperation: "Переказ токена не вдався. Перевірте баланс і дозвіл на списання.",
 };
 
 export function contractErrorText(name: string): string {

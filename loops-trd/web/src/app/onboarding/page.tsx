@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Alert, Button, Card, Field, Input, PageTitle } from "@/components/ui";
 import { Guard } from "@/components/shell";
@@ -17,16 +17,24 @@ export default function OnboardingPage() {
 
 function Onboarding() {
   const me = useMe();
+  const p = me.data?.profile;
+  // Форма монтується з уже завантаженими даними профілю (key) — без setState в ефекті.
+  return <OnboardingForm key={p ? "loaded" : "empty"} />;
+}
+
+function OnboardingForm() {
+  const me = useMe();
   const refresh = useRefreshMe();
   const router = useRouter();
   const p = me.data?.profile;
-  const [f, setF] = useState({ display_name: "", telegram: "", card_holder_name: "", card_last4: "" });
+  const [f, setF] = useState({
+    display_name: p?.display_name ?? "",
+    telegram: p?.telegram ?? "",
+    card_holder_name: p?.card_holder_name ?? "",
+    card_last4: p?.card_last4 ?? "",
+  });
   const [err, setErr] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-
-  useEffect(() => {
-    if (p) setF({ display_name: p.display_name ?? "", telegram: p.telegram ?? "", card_holder_name: p.card_holder_name ?? "", card_last4: p.card_last4 ?? "" });
-  }, [p]);
 
   const save = async () => {
     setErr(null);

@@ -66,6 +66,16 @@ class PgClientDb implements Db {
   }
 }
 
+/**
+ * TLS до Postgres. З DATABASE_CA_CERT (PEM-сертифікат Supabase: Project Settings → Database → SSL)
+ * сертифікат сервера перевіряється (захист від MITM). Без нього — шифрування без перевірки (лише для тесту).
+ */
+function sslConfig() {
+  if (process.env.DATABASE_SSL === "false") return undefined;
+  const ca = process.env.DATABASE_CA_CERT?.replace(/\\n/g, "\n");
+  return ca ? { ca, rejectUnauthorized: true } : { rejectUnauthorized: false };
+}
+
 const globalForDb = globalThis as unknown as { __loopsDb?: Db };
 
 export function getDb(): Db {
@@ -75,7 +85,7 @@ export function getDb(): Db {
     const pool = new Pool({
       connectionString,
       max: Number(process.env.DATABASE_POOL_MAX || 5),
-      ssl: process.env.DATABASE_SSL === "false" ? undefined : { rejectUnauthorized: false },
+      ssl: sslConfig(),
     });
     globalForDb.__loopsDb = new PgDb(pool);
   }

@@ -13,6 +13,9 @@ interface Dash {
   stats: Record<string, string>;
   recent: { id: string; amount_usdt: string; status: string; frozen: boolean; risk_level: string | null; created_at: string; seller_name: string; buyer_name: string }[];
   daily: { day: string; deals: string; volume: string }[];
+  gas: { address: string; balance: string; low: boolean } | null;
+  keeperLastRun: string | null;
+  system: { id: number; level: string; source: string; message: string; created_at: string }[];
 }
 
 export default function AdminPage() {
@@ -41,6 +44,47 @@ function Admin() {
           <Stat label="Нові заявки" value={s.applications} tone={Number(s.applications) ? "warn" : undefined} sub={`запитів на зміну: ${s.change_requests} · учасників: ${s.members}`} />
         </Link>
       </div>
+
+      <div className="mt-4 grid gap-3 sm:grid-cols-2">
+        <Card title="Серверний гаманець (газ)">
+          {q.data.gas ? (
+            <div className="text-sm">
+              <div className={`text-xl font-semibold tabular ${q.data.gas.low ? "text-bad" : ""}`}>{Number(q.data.gas.balance).toFixed(4)} tBNB</div>
+              <div className="font-mono text-xs text-ink-3 break-all">{q.data.gas.address}</div>
+              {q.data.gas.low && <div className="mt-2 text-bad text-xs">Мало газу: поповніть з фаусета, інакше зупиняться відпуск коштів і автоскасування.</div>}
+            </div>
+          ) : (
+            <p className="text-sm text-ink-3">Контракт не налаштовано або RPC недоступний.</p>
+          )}
+        </Card>
+        <Card title="Кіпер (автоскасування, звірка)">
+          {(() => {
+            const age = q.data.keeperLastRun ? (Date.parse(q.data.keeperLastRun) - Date.parse(new Date().toISOString())) / -60000 : null;
+            return (
+              <div className="text-sm">
+                <div className={`text-xl font-semibold ${age === null || age > 10 ? "text-bad" : "text-ok"}`}>
+                  {age === null ? "ще не запускався" : age < 1 ? "щойно" : `${Math.round(age)} хв тому`}
+                </div>
+                {(age === null || age > 10) && <div className="mt-1 text-xs text-bad">Перевірте pg_cron / GitHub Actions / воркер (див. README → «Кіпер»).</div>}
+              </div>
+            );
+          })()}
+        </Card>
+      </div>
+
+      {q.data.system.length > 0 && (
+        <Card title="Системні попередження" className="mt-4">
+          <ul className="space-y-1.5 text-[13px]">
+            {q.data.system.map((e) => (
+              <li key={e.id} className="flex gap-2">
+                <Badge tone={e.level === "error" ? "bad" : "warn"}>{e.source}</Badge>
+                <span className="flex-1 text-ink-2">{e.message}</span>
+                <span className="text-[11px] text-ink-3 shrink-0">{fmtDate(e.created_at)}</span>
+              </li>
+            ))}
+          </ul>
+        </Card>
+      )}
 
       <div className="mt-4 grid gap-4 lg:grid-cols-2">
         <Card title="Обсяг за 14 днів, USDT">

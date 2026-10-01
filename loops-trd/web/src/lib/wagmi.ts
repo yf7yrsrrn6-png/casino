@@ -1,11 +1,15 @@
-import { cookieStorage, createStorage } from "wagmi";
+import { cookieStorage, createStorage, http } from "wagmi";
 import { WagmiAdapter } from "@reown/appkit-adapter-wagmi";
-import { bscTestnet } from "@reown/appkit/networks";
+import { bscTestnet as baseBscTestnet, defineChain } from "@reown/appkit/networks";
 
 /** Project ID з https://dashboard.reown.com (див. README). */
 export const projectId = process.env.NEXT_PUBLIC_REOWN_PROJECT_ID || "";
 
-// Лише тестова мережа.
+// Лише тестова мережа. RPC можна замінити (власний вузол QuickNode/Chainstack або локальний для e2e).
+const customRpc = process.env.NEXT_PUBLIC_BSC_RPC_URL;
+export const bscTestnet = customRpc
+  ? defineChain({ ...baseBscTestnet, chainNamespace: "eip155", caipNetworkId: "eip155:97", rpcUrls: { default: { http: [customRpc] } } })
+  : baseBscTestnet;
 export const networks = [bscTestnet] as [typeof bscTestnet];
 
 export const wagmiAdapter = new WagmiAdapter({
@@ -13,6 +17,8 @@ export const wagmiAdapter = new WagmiAdapter({
   ssr: true,
   projectId: projectId || "missing-project-id",
   networks,
+  // Власний RPC має пріоритет над RPC-проксі Reown (стабільніше; і потрібно для локальних e2e).
+  ...(customRpc ? { transports: { [bscTestnet.id]: http(customRpc) } } : {}),
 });
 
 export const wagmiConfig = wagmiAdapter.wagmiConfig;

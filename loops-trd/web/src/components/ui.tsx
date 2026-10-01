@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, type ButtonHTMLAttributes, type InputHTMLAttributes, type ReactNode, type SelectHTMLAttributes, type TextareaHTMLAttributes } from "react";
+import { useEffect, useState, useSyncExternalStore, type ButtonHTMLAttributes, type InputHTMLAttributes, type ReactNode, type SelectHTMLAttributes, type TextareaHTMLAttributes } from "react";
 
 export const cx = (...c: (string | false | null | undefined)[]) => c.filter(Boolean).join(" ");
 
@@ -49,7 +49,8 @@ export function Button({
 }: ButtonHTMLAttributes<HTMLButtonElement> & { variant?: BtnVariant; size?: "sm" | "md" | "lg"; loading?: boolean }) {
   const base =
     "inline-flex items-center justify-center gap-2 rounded-xl font-medium transition active:scale-[.98] disabled:opacity-50 disabled:pointer-events-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand";
-  const sizes = { sm: "h-8 px-3 text-[13px]", md: "h-10 px-4 text-sm", lg: "h-12 px-6 text-[15px]" };
+  // На телефоні — цілі для дотику ≥ 40–44 px; на десктопі — компактніші.
+  const sizes = { sm: "h-10 sm:h-8 px-3 text-[13px]", md: "h-11 sm:h-10 px-4 text-sm", lg: "h-12 px-6 text-[15px]" };
   const variants: Record<BtnVariant, string> = {
     primary: "brand-gradient text-[#0b0b12] font-semibold shadow-[0_8px_30px_-10px_rgba(139,108,255,.7)] hover:brightness-110",
     secondary: "bg-surface-3 text-ink border border-line-strong hover:bg-[#232840]",
@@ -163,8 +164,9 @@ export function Tabs<T extends string>({ value, onChange, items }: { value: T; o
         <button
           key={i.value}
           onClick={() => onChange(i.value)}
+          aria-pressed={value === i.value}
           className={cx(
-            "h-8 px-3 rounded-lg text-[13px] font-medium whitespace-nowrap transition",
+            "h-10 sm:h-8 px-3 rounded-lg text-[13px] font-medium whitespace-nowrap transition",
             value === i.value ? "bg-surface-3 text-ink shadow-sm border border-line-strong" : "text-ink-3 hover:text-ink-2",
           )}
         >
@@ -193,7 +195,7 @@ export function Modal({ open, onClose, title, children }: { open: boolean; onClo
       >
         <div className="mb-4 flex items-center justify-between gap-3">
           <h3 className="text-base font-semibold">{title}</h3>
-          <button onClick={onClose} className="h-8 w-8 rounded-lg text-ink-3 hover:bg-surface-2 hover:text-ink" aria-label="Закрити">
+          <button onClick={onClose} className="h-10 w-10 rounded-lg text-ink-3 hover:bg-surface-2 hover:text-ink" aria-label="Закрити">
             ✕
           </button>
         </div>
@@ -259,10 +261,40 @@ export function useToast() {
   }, [msg]);
   const node = msg ? (
     <div className="fixed bottom-20 sm:bottom-6 left-1/2 -translate-x-1/2 z-[60] w-[calc(100%-2rem)] max-w-md">
-      <div className={cx("rounded-xl border px-4 py-3 text-sm shadow-2xl backdrop-blur", msg.tone === "ok" ? "bg-[#0d2a20]/95 border-ok/30 text-ok" : "bg-[#2a1214]/95 border-bad/30 text-bad")}>
+      <div role="alert" className={cx("rounded-xl border px-4 py-3 text-sm shadow-2xl backdrop-blur", msg.tone === "ok" ? "bg-[#0d2a20]/95 border-ok/30 text-ok" : "bg-[#2a1214]/95 border-bad/30 text-bad")}>
         {msg.text}
       </div>
     </div>
   ) : null;
   return { node, ok: (text: string) => setMsg({ text, tone: "ok" }), bad: (text: string) => setMsg({ text, tone: "bad" }) };
+}
+
+const subscribeOnline = (cb: () => void) => {
+  window.addEventListener("online", cb);
+  window.addEventListener("offline", cb);
+  return () => {
+    window.removeEventListener("online", cb);
+    window.removeEventListener("offline", cb);
+  };
+};
+
+/** Банер «немає інтернету» — з'являється автоматично при втраті з'єднання. На сервері завжди «онлайн». */
+export function OfflineBanner() {
+  const online = useSyncExternalStore(subscribeOnline, () => navigator.onLine, () => true);
+  if (online) return null;
+  return (
+    <div role="status" className="sticky top-14 z-30 bg-warn/15 border-b border-warn/30 px-4 py-2 text-center text-[13px] text-warn">
+      Немає інтернету. Дані можуть бути застарілими — дії виконаються після відновлення з&apos;єднання.
+    </div>
+  );
+}
+
+/** Поточний час, що оновлюється з інтервалом — для таймерів і станів «дедлайн минув». */
+export function useNow(intervalMs = 5000) {
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const t = setInterval(() => setNow(Date.now()), intervalMs);
+    return () => clearInterval(t);
+  }, [intervalMs]);
+  return now;
 }

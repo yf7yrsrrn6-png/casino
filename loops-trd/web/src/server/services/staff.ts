@@ -169,6 +169,11 @@ export async function adminDecideFrozen(
 
 export async function dashboard(ctx: Ctx, actor: Actor) {
   requireAdmin(actor);
+  // Газ серверного гаманця: без tBNB зупиняться approveRelease / freezeDeal / автоскасування.
+  const gas = ctx.chain.configured
+    ? await ctx.chain.signerBalance().then((g) => ({ ...g, low: Number(g.balance) < Number(process.env.LOW_GAS_THRESHOLD || 0.02) })).catch(() => null)
+    : null;
+  const keeper = await one<{ updated_at: Date }>(ctx.db, `select updated_at from chain_cursor where id = 'escrow'`);
   return asUser(ctx.db, actor.id, async (tx) => {
     const stats = await one(
       tx,
@@ -198,7 +203,8 @@ export async function dashboard(ctx: Ctx, actor: Actor) {
          from deals where created_at > now() - interval '14 days' group by 1 order by 1`,
       )
     ).rows;
-    return { stats, recent, daily };
+    const system = (await tx.query(`select * from system_events where level <> 'info' order by created_at desc limit 10`)).rows;
+    return { stats, recent, daily, gas, keeperLastRun: keeper?.updated_at ?? null, system };
   });
 }
 
@@ -227,6 +233,11 @@ export async function listUsers(ctx: Ctx, actor: Actor, status?: string) {
   }));
 }
 
+export async function systemEvents(ctx: Ctx, actor: Actor) {
+  requireAdmin(actor);
+  return asUser(ctx.db, actor.id, async (tx) => (await tx.query(`select * from system_events order by created_at desc limit 300`)).rows);
+}
+
 export async function auditLog(ctx: Ctx, actor: Actor, filter: { actorId?: string; limit?: number }) {
   requireStaff(actor);
   return asUser(ctx.db, actor.id, async (tx) =>
@@ -243,9 +254,8 @@ export async function auditLog(ctx: Ctx, actor: Actor, filter: { actorId?: strin
 /** Журнал усіх дій в угодах — для персоналу. */
 export async function dealEventsLog(ctx: Ctx, actor: Actor, limit = 200) {
   requireStaff(actor);
-  return asUser(ctx.db, actor.id, async (tx) =>
-    (await tx.query(`select * from deal_events order by created_at desc limit $1`, [Math.min(limit, 500)])).rows,
-  );
+  // Персонал бачить деталі подій; колонка details закрита для ролі authenticated, тож читаємо через сервер.
+  return (await ctx.db.query(`select * from deal_events order by created_at desc limit $1`, [Math.min(limit, 500)])).rows;
 }
 
 // ─── Антифрод: адмінка ───────────────────────────────────────────────────

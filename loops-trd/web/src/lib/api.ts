@@ -1,5 +1,7 @@
 "use client";
 
+import { walletErrorText } from "./wallet-errors";
+
 export class ApiError extends Error {
   constructor(
     public status: number,
@@ -26,6 +28,8 @@ export function getDeviceId(): Promise<string | null> {
   return deviceIdPromise;
 }
 
+const TIMEOUT_MS = 25_000;
+
 export async function api<T = unknown>(path: string, init: { method?: string; body?: unknown } = {}): Promise<T> {
   const headers: Record<string, string> = { "content-type": "application/json" };
   const device = await getDeviceId();
@@ -35,24 +39,33 @@ export async function api<T = unknown>(path: string, init: { method?: string; bo
   } catch {
     /* ignore */
   }
-  const res = await fetch(path, {
-    method: init.method ?? (init.body !== undefined ? "POST" : "GET"),
-    headers,
-    body: init.body !== undefined ? JSON.stringify(init.body) : undefined,
-    credentials: "same-origin",
-    cache: "no-store",
-  });
+  if (typeof navigator !== "undefined" && navigator.onLine === false) {
+    throw new ApiError(0, "Немає інтернету. Дія виконається, коли з'єднання відновиться — спробуйте ще раз.", "offline");
+  }
+  let res: Response;
+  try {
+    res = await fetch(path, {
+      method: init.method ?? (init.body !== undefined ? "POST" : "GET"),
+      headers,
+      body: init.body !== undefined ? JSON.stringify(init.body) : undefined,
+      credentials: "same-origin",
+      cache: "no-store",
+      signal: AbortSignal.timeout(TIMEOUT_MS),
+    });
+  } catch (e) {
+    const timeout = e instanceof DOMException && (e.name === "TimeoutError" || e.name === "AbortError");
+    throw new ApiError(0, timeout ? "Сервер відповідає надто довго. Перевірте з'єднання й спробуйте ще раз." : "Не вдалося з'єднатися із сервером. Перевірте інтернет.", "network");
+  }
   const data = (await res.json().catch(() => ({}))) as Record<string, unknown>;
   if (!res.ok) throw new ApiError(res.status, String(data.error ?? `Помилка ${res.status}`), data.code as string | undefined, data);
   return data as T;
 }
 
+/** Будь-яка помилка → один зрозумілий рядок українською. */
 export function errorText(e: unknown): string {
   if (e instanceof ApiError) return e.message;
-  if (e && typeof e === "object" && "shortMessage" in e) return String((e as { shortMessage: string }).shortMessage);
-  if (e instanceof Error) {
-    if (/User rejected|User denied/i.test(e.message)) return "Дію скасовано в гаманці";
-    return e.message.split("\n")[0].slice(0, 200);
-  }
-  return "Невідома помилка";
+  const w = walletErrorText(e);
+  if (w) return w;
+  if (e instanceof Error && /[А-Яа-яІіЇїЄєҐґ]/.test(e.message)) return e.message.split("\n")[0].slice(0, 300);
+  return "Щось пішло не так. Оновіть сторінку й спробуйте ще раз.";
 }

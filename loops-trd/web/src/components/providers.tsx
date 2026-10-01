@@ -4,8 +4,8 @@ import { type ReactNode, useState } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { WagmiProvider, cookieToInitialState, type Config } from "wagmi";
 import { createAppKit } from "@reown/appkit/react";
-import { bscTestnet } from "@reown/appkit/networks";
-import { projectId, wagmiAdapter, METAMASK_ID, TRUST_WALLET_ID } from "@/lib/wagmi";
+import { bscTestnet, projectId, wagmiAdapter, METAMASK_ID, TRUST_WALLET_ID } from "@/lib/wagmi";
+import { E2EWalletBridge } from "./e2e-wallet";
 
 const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
 
@@ -30,12 +30,21 @@ createAppKit({
 
 export function Providers({ children, cookies }: { children: ReactNode; cookies: string | null }) {
   const [qc] = useState(
-    () => new QueryClient({ defaultOptions: { queries: { staleTime: 5_000, refetchOnWindowFocus: true, retry: 1 } } }),
+    () => new QueryClient({
+        defaultOptions: {
+          // Повільний інтернет: кілька повторів з паузою, оновлення при поверненні мережі.
+          queries: { staleTime: 5_000, refetchOnWindowFocus: true, refetchOnReconnect: true, retry: 3, retryDelay: (n) => Math.min(1000 * 2 ** n, 8000) },
+          mutations: { retry: 0 },
+        },
+      }),
   );
   const initialState = cookieToInitialState(wagmiAdapter.wagmiConfig as Config, cookies);
   return (
     <WagmiProvider config={wagmiAdapter.wagmiConfig as Config} initialState={initialState}>
-      <QueryClientProvider client={qc}>{children}</QueryClientProvider>
+      <QueryClientProvider client={qc}>
+        {process.env.NEXT_PUBLIC_E2E === "1" && <E2EWalletBridge />}
+        {children}
+      </QueryClientProvider>
     </WagmiProvider>
   );
 }

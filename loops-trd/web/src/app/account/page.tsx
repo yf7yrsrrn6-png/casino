@@ -11,7 +11,6 @@ import { Guard } from "@/components/shell";
 import { useMe, useRefreshMe } from "@/components/session";
 import { useEscrowTx } from "@/components/use-escrow";
 import { api, errorText } from "@/lib/api";
-import { mockUsdtAbi } from "@/lib/abi";
 import { ROLE_LABEL, USER_STATUS, fmtDate, fmtNum, shortAddr } from "@/lib/format";
 
 export default function AccountPage() {
@@ -113,6 +112,7 @@ function Account() {
           </Card>
         )}
 
+        {actor.status === "approved" && <TelegramCard toast={toast} />}
         {actor.status === "approved" && <TestTokens toast={toast} />}
 
         {!!me.data?.requests?.length && (
@@ -266,7 +266,7 @@ function TestTokens({ toast }: { toast: ReturnType<typeof useToast> }) {
     setBusy(true);
     try {
       await tx.ensure();
-      await tx.write({ address: usdt, abi: mockUsdtAbi, functionName: "faucet", args: [] });
+      await tx.usdt.faucet(usdt);
       toast.ok("Отримано 1000 mUSDT");
     } catch (e) {
       toast.bad(errorText(e));
@@ -287,6 +287,57 @@ function TestTokens({ toast }: { toast: ReturnType<typeof useToast> }) {
         <Button size="sm" variant="secondary" onClick={() => watchAssetAsync({ type: "ERC20", options: { address: usdt, symbol: "mUSDT", decimals: 18 } }).catch(() => {})}>
           Додати токен у гаманець
         </Button>
+      </div>
+    </Card>
+  );
+}
+
+function TelegramCard({ toast }: { toast: ReturnType<typeof useToast> }) {
+  const cfg = useQuery({ queryKey: ["config"], queryFn: () => api<{ telegram: boolean }>("/api/config"), staleTime: Infinity });
+  const me = useMe();
+  const refresh = useRefreshMe();
+  const [busy, setBusy] = useState(false);
+  if (!cfg.data?.telegram) return null;
+  const linked = me.data?.telegram;
+  const connect = async () => {
+    setBusy(true);
+    try {
+      const r = await api<{ url: string | null; code: string }>("/api/me/telegram", { body: {} });
+      if (r.url) window.open(r.url, "_blank", "noopener");
+      toast.ok("Відкрийте бота в Telegram і натисніть «Start»");
+    } catch (e) {
+      toast.bad(errorText(e));
+    } finally {
+      setBusy(false);
+    }
+  };
+  const disconnect = async () => {
+    await api("/api/me/telegram", { method: "DELETE" }).catch((e) => toast.bad(errorText(e)));
+    refresh();
+  };
+  return (
+    <Card title="Сповіщення в Telegram" actions={<Badge tone={linked ? "ok" : "muted"}>{linked ? "підключено" : "вимкнено"}</Badge>}>
+      <p className="text-sm text-ink-2">Нові угоди, депозит, оплата, спори та рішення — одразу в Telegram, навіть коли сайт закрито.</p>
+      <div className="mt-3 flex flex-wrap gap-2">
+        {linked ? (
+          <>
+            <Button size="sm" variant="secondary" onClick={() => refresh()}>
+              Оновити статус
+            </Button>
+            <Button size="sm" variant="ghost" onClick={disconnect}>
+              Відключити
+            </Button>
+          </>
+        ) : (
+          <>
+            <Button size="sm" onClick={connect} loading={busy}>
+              Підключити Telegram
+            </Button>
+            <Button size="sm" variant="ghost" onClick={() => refresh()}>
+              Я натиснув Start
+            </Button>
+          </>
+        )}
       </div>
     </Card>
   );

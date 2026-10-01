@@ -10,7 +10,7 @@
   --color-line-strong: #2f3549;
   --color-ink: #eef0f6;
   --color-ink-2: #a9afc3;
-  --color-ink-3: #6d7389;
+  --color-ink-3: #848ba1; /* ≥ 4.7:1 на всіх фонах (WCAG AA) */
   --color-brand: #8b6cff;
   --color-brand-2: #2ee6d6;
   --color-ok: #34d399;

@@ -7,33 +7,19 @@
  *
  * Запуск: npm run build && npm run e2e
  */
-import { spawn, type ChildProcess } from "child_process";
 import fs from "fs";
 import path from "path";
-import { PGlite } from "@electric-sql/pglite";
-import { PGLiteSocketServer } from "@electric-sql/pglite-socket";
-import { createPublicClient, createWalletClient, http, parseEther, parseUnits, defineChain, type Hex, type Address } from "viem";
+import { createWalletClient, http, parseEther, parseUnits, type Hex, type Address } from "viem";
 import { privateKeyToAccount, generatePrivateKey } from "viem/accounts";
 import { createSiweMessage } from "viem/siwe";
 import { escrowAbi, mockUsdtAbi } from "../src/lib/abi";
+import { CRON_SECRET, KEYS, ROOT, RPC, chain, killAll, pub, startStack } from "./stack";
 
-const ROOT = path.join(__dirname, "..");
-const CONTRACTS = path.join(ROOT, "..", "contracts");
 const APP_PORT = 3100;
-const PG_PORT = 54329;
-const RPC = "http://127.0.0.1:8545";
 const BASE = `http://localhost:${APP_PORT}`;
-const CRON_SECRET = "e2e-cron-secret";
+const DEPLOYER = KEYS.deployer;
+const ADMIN = KEYS.admin;
 
-// Стандартні тестові ключі Hardhat (лише локально!)
-const DEPLOYER = "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80" as Hex;
-const ADMIN = "0x59c6995e998f97a5a0044966f0945389dc9e86dae88c7a8412f4603b6b78690d" as Hex;
-const BACKEND = "0x5de4111afa1a4b94908f83103eb1f1706367c2e68ca870fc3fb9a804cdab365a" as Hex;
-
-const chain = defineChain({ id: 97, name: "local-97", nativeCurrency: { name: "BNB", symbol: "tBNB", decimals: 18 }, rpcUrls: { default: { http: [RPC] } } });
-const pub = createPublicClient({ chain, transport: http(RPC) });
-
-const procs: ChildProcess[] = [];
 let failures = 0;
 const ok = (m: string) => console.log(`  ✓ ${m}`);
 function check(cond: unknown, m: string) {
@@ -42,25 +28,6 @@ function check(cond: unknown, m: string) {
     failures++;
     console.log(`  ✗ ${m}`);
   }
-}
-
-function run(cmd: string, args: string[], opts: { cwd: string; env?: Record<string, string>; tag: string; wait?: boolean }) {
-  // detached → окрема група процесів, щоб зупинити і дочірні процеси npx.
-  const p = spawn(cmd, args, { cwd: opts.cwd, env: { ...process.env, ...opts.env }, stdio: ["ignore", "pipe", "pipe"], detached: !opts.wait });
-  const log = fs.createWriteStream(path.join(ROOT, "e2e", `${opts.tag}.log`));
-  p.stdout.pipe(log);
-  p.stderr.pipe(log);
-  if (!opts.wait) procs.push(p);
-  return new Promise<number>((resolve) => (opts.wait ? p.on("exit", (c) => resolve(c ?? 1)) : resolve(0)));
-}
-
-async function waitFor(fn: () => Promise<boolean>, what: string, ms = 120_000) {
-  const t = Date.now();
-  while (Date.now() - t < ms) {
-    if (await fn().catch(() => false)) return;
-    await new Promise((r) => setTimeout(r, 500));
-  }
-  throw new Error(`Таймаут: ${what}`);
 }
 
 class User {
@@ -108,53 +75,12 @@ async function wait(seconds: number) {
 }
 
 async function main() {
-  console.log("▶ Postgres (PGlite) + міграції");
-  const db = new PGlite();
-  const migDir = path.join(ROOT, "supabase", "migrations");
-  for (const f of fs.readdirSync(migDir).sort()) await db.exec(fs.readFileSync(path.join(migDir, f), "utf8"));
-  const pg = new PGLiteSocketServer({ db, port: PG_PORT, host: "127.0.0.1", maxConnections: 20 });
-  await pg.start();
-
-  console.log("▶ Hardhat node (chainId 97) + деплой контрактів");
-  const env = { HARDHAT_CHAIN_ID: "97", USE_SOLCJS: process.env.USE_SOLCJS ?? "true" };
-  await run("npx", ["hardhat", "node", "--port", "8545"], { cwd: CONTRACTS, env, tag: "hardhat" });
-  await waitFor(async () => (await pub.getChainId()) === 97, "hardhat node");
-  const adminAcc = privateKeyToAccount(ADMIN);
-  const backendAcc = privateKeyToAccount(BACKEND);
-  const code = await run("npx", ["hardhat", "run", "scripts/deploy.ts", "--network", "localhost"], {
-    cwd: CONTRACTS,
-    env: { ...env, ADMIN_ADDRESS: adminAcc.address, BACKEND_SIGNER_ADDRESS: backendAcc.address },
-    tag: "deploy",
-    wait: true,
-  });
-  if (code !== 0) throw new Error("Деплой не вдався — див. e2e/deploy.log");
-  const dep = JSON.parse(fs.readFileSync(path.join(CONTRACTS, "deployments", "localhost.json"), "utf8"));
-  const ESCROW = dep.escrow as Address;
-  const USDT = dep.usdt as Address;
+  console.log("▶ Стенд: Postgres + Hardhat (chainId 97) + контракти + next start");
+  const stack = await startStack({ port: APP_PORT });
+  const ESCROW = stack.escrow;
+  const USDT = stack.usdt;
   ok(`LoopsTrdEscrow ${ESCROW}, MockUSDT ${USDT}`);
-
-  console.log("▶ next start");
-  await run("npx", ["next", "start", "-p", String(APP_PORT)], {
-    cwd: ROOT,
-    tag: "next",
-    env: {
-      DATABASE_URL: `postgres://postgres:postgres@127.0.0.1:${PG_PORT}/postgres`,
-      DATABASE_SSL: "false",
-      DATABASE_POOL_MAX: "4",
-      SESSION_SECRET: "e2e-session-secret-e2e-session-secret-123",
-      APP_DOMAIN: `localhost:${APP_PORT}`,
-      APP_URL: BASE,
-      CHAIN_ID: "97",
-      BSC_TESTNET_RPC_URL: RPC,
-      ESCROW_ADDRESS: ESCROW,
-      USDT_ADDRESS: USDT,
-      BACKEND_SIGNER_PRIVATE_KEY: BACKEND,
-      BOOTSTRAP_ADMIN_WALLET: adminAcc.address.toLowerCase(),
-      CRON_SECRET,
-      AML_STUB_HIGH_RISK: "",
-    },
-  });
-  await waitFor(async () => (await fetch(`${BASE}/api/config`)).ok, "next start");
+  stopStack = stack.stop;
 
   // Учасники: газ від деплоєра
   const funder = createWalletClient({ chain, transport: http(RPC), account: privateKeyToAccount(DEPLOYER) });
@@ -323,22 +249,18 @@ async function main() {
     console.log(`\nСервери працюють (${BASE}). Ctrl+C для зупинки.`);
     await new Promise(() => {});
   }
-  await pg.stop();
 }
+
+let stopStack: (() => Promise<void>) | null = null;
 
 main()
   .catch((e) => {
     failures++;
     console.error("\n✗", e);
   })
-  .finally(() => {
-    for (const p of procs) {
-      try {
-        if (p.pid) process.kill(-p.pid, "SIGTERM");
-      } catch {
-        p.kill("SIGTERM");
-      }
-    }
+  .finally(async () => {
+    if (stopStack) await stopStack().catch(() => {});
+    killAll();
     if (!process.env.E2E_KEEP_RUNNING) {
       console.log(failures ? `\n✗ Невдалих перевірок: ${failures}` : "\n✓ E2E: усе пройдено");
       process.exit(failures ? 1 : 0);

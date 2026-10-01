@@ -8,7 +8,7 @@ import { useAppKit } from "@reown/appkit/react";
 import { useAccount, useChainId, useSwitchChain } from "wagmi";
 import { api } from "@/lib/api";
 import { shortAddr, USER_STATUS } from "@/lib/format";
-import { Alert, Badge, Button, Logo, Spinner, cx } from "./ui";
+import { Alert, Badge, Button, Logo, OfflineBanner, Spinner, cx } from "./ui";
 import { isAdminRole, isStaffRole, useMe, type Actor } from "./session";
 
 const CHAIN_ID = 97;
@@ -53,7 +53,7 @@ export function WalletButton() {
 function Bell() {
   const q = useQuery({ queryKey: ["notifications"], queryFn: () => api<{ unread: number }>("/api/notifications"), refetchInterval: 20_000 });
   return (
-    <Link href="/notifications" className="relative h-9 w-9 inline-flex items-center justify-center rounded-lg text-ink-2 hover:bg-surface-2" aria-label="Сповіщення">
+    <Link href="/notifications" className="relative h-10 w-10 inline-flex items-center justify-center rounded-lg text-ink-2 hover:bg-surface-2" aria-label="Сповіщення">
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
         <path d="M6 8a6 6 0 1 1 12 0c0 7 3 9 3 9H3s3-2 3-9" />
         <path d="M10.3 21a1.94 1.94 0 0 0 3.4 0" />
@@ -133,6 +133,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         </div>
       </header>
 
+      <OfflineBanner />
       <main className="flex-1 mx-auto w-full max-w-6xl px-4 py-5 sm:py-8 pb-24 md:pb-10">{children}</main>
 
       {approved && (

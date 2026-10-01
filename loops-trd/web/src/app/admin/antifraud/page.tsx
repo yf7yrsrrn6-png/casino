@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Suspense, useEffect, useState } from "react";
+import { Suspense, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { Alert, Badge, Button, Card, Empty, Field, Input, PageTitle, Select, Spinner, Tabs, cx, useToast } from "@/components/ui";
@@ -77,7 +77,7 @@ function Antifraud() {
       ) : tab === "queue" ? (
         <Queue items={q.data.queue} />
       ) : tab === "settings" ? (
-        <Settings initial={q.data.config} canEdit={admin} toast={toast} onSaved={() => q.refetch()} />
+        <Settings key={q.dataUpdatedAt} initial={q.data.config} canEdit={admin} toast={toast} onSaved={() => q.refetch()} />
       ) : tab === "stats" ? (
         <Stats s={q.data.stats} />
       ) : tab === "blacklist" ? (
@@ -131,7 +131,6 @@ function Settings({ initial, canEdit, toast, onSaved }: { initial: AntifraudConf
   const [c, setC] = useState<AntifraudConfig>(initial);
   const [busy, setBusy] = useState(false);
   const sign = useSignAction();
-  useEffect(() => setC(initial), [initial]);
 
   const setSignal = (code: SignalCode, patch: Partial<AntifraudConfig["signals"][SignalCode]>) => setC({ ...c, signals: { ...c.signals, [code]: { ...c.signals[code], ...patch } } });
   const int = (v: string) => Math.max(0, Math.round(Number(v) || 0));

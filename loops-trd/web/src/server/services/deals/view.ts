@@ -76,12 +76,17 @@ export async function getDealView(ctx: Ctx, actor: Actor, dealId: string) {
       deal,
       role,
       seller: pub(seller, true),
-      buyer: pub(buyer, role === "seller" || staff),
+      // Реквізити покупця бачать продавець (для звірки імені відправника), персонал і сам покупець.
+      buyer: pub(buyer, role === "seller" || role === "buyer" || staff),
       events,
       dispute,
       risks,
       escrow: ctx.chain.escrowAddress,
       usdt: ctx.chain.usdtAddress,
+      /** Пільговий період після дедлайну, коли покупець ще може відкрити спір (як у контракті). */
+      graceMinutes: Number(process.env.CANCEL_GRACE_MINUTES || 15),
+      /** Для підказок новачку: чи це перша угода поточного користувача. */
+      firstDeal: role !== "staff" && (parties.find((p) => p.id === actor.id)?.successful_deals ?? 0) === 0,
     };
   });
 }

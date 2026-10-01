@@ -154,19 +154,13 @@ class ViemEscrowGateway implements EscrowGateway {
 
   /**
    * Транзакції серверного гаманця йдуть строго по черзі (блокування в БД між усіма інстансами),
-   * інакше паралельні запити отримують однаковий nonce і падають.
+   * інакше паралельні запити отримують однаковий nonce і падають. Спершу симуляція — щоб не
+   * витрачати газ на транзакцію, яку контракт відхилить.
    */
-  private send(functionName: "approveRelease" | "freezeDeal" | "cancel", args: readonly unknown[]) {
+  private send(write: () => Promise<Hex>) {
     return this.lock(async () => {
       try {
-        const { request } = await this.pub.simulateContract({
-          address: this.escrowAddress,
-          abi: escrowAbi,
-          functionName,
-          args: args as never,
-          account: this.account,
-        });
-        const hash = await this.wallet.writeContract(request);
+        const hash = await write();
         await this.pub.waitForTransactionReceipt({ hash, timeout: 90_000 });
         return hash;
       } catch (e) {
@@ -175,14 +169,27 @@ class ViemEscrowGateway implements EscrowGateway {
     });
   }
 
+  private get c() {
+    return { address: this.escrowAddress, abi: escrowAbi, account: this.account } as const;
+  }
+
   approveRelease(id: Hex) {
-    return this.send("approveRelease", [id]);
+    return this.send(async () => {
+      const { request } = await this.pub.simulateContract({ ...this.c, functionName: "approveRelease", args: [id] });
+      return this.wallet.writeContract(request);
+    });
   }
   freezeDeal(id: Hex, reason: string) {
-    return this.send("freezeDeal", [id, keccak256(toBytes(reason))]);
+    return this.send(async () => {
+      const { request } = await this.pub.simulateContract({ ...this.c, functionName: "freezeDeal", args: [id, keccak256(toBytes(reason))] });
+      return this.wallet.writeContract(request);
+    });
   }
   cancel(id: Hex) {
-    return this.send("cancel", [id]);
+    return this.send(async () => {
+      const { request } = await this.pub.simulateContract({ ...this.c, functionName: "cancel", args: [id] });
+      return this.wallet.writeContract(request);
+    });
   }
 
   async readResolution(txHash: Hex, id: Hex) {
