@@ -48,7 +48,8 @@ export class AmlBotProvider implements AmlProvider {
   readonly name = "amlbot";
   constructor(private readonly apiKey: string | undefined) {}
 
-  async checkAddress(_address: string): Promise<AmlResult> {
+  async checkAddress(address: string): Promise<AmlResult> {
+    void address;
     if (!this.apiKey) return { level: "unknown", source: this.name, details: "AMLBOT_API_KEY не задано" };
     // TODO: виклик API AMLBot. Не вигадуємо формат запиту — додайте за офіційною документацією.
     return { level: "unknown", source: this.name, details: "Інтеграцію ще не реалізовано" };

@@ -327,10 +327,17 @@ async function afterPaid(ctx: Ctx, d: DealRow) {
     amountUsdt: Number(d.amount_usdt),
     actingUserId: d.buyer_id,
     meta: null,
-    timing: { secondsFundedToPaid: d.funded_at && d.paid_at ? (new Date(d.paid_at).getTime() - new Date(d.funded_at).getTime()) / 1000 : null },
+    timing: { secondsFundedToPaid: elapsed(d.funded_at, d.paid_at) },
     senderNameMismatch: await senderMismatch(ctx.db, d),
   });
   await applyRiskDecision(ctx, d, risk);
+}
+
+/** Секунди між подіями; null, якщо даних немає або годинники сервера й блокчейну розійшлися (від'ємний інтервал). */
+function elapsed(from: Date | null, to: Date | null): number | null {
+  if (!from || !to) return null;
+  const s = (new Date(to).getTime() - new Date(from).getTime()) / 1000;
+  return s >= 0 ? s : null;
 }
 
 async function senderMismatch(db: Db, d: DealRow) {
@@ -442,7 +449,7 @@ export async function requestRelease(
       amountUsdt: Number(d.amount_usdt),
       actingUserId: actor.id,
       meta,
-      timing: { secondsPaidToRelease: d.paid_at ? (ctx.now().getTime() - new Date(d.paid_at).getTime()) / 1000 : null },
+      timing: { secondsPaidToRelease: elapsed(d.paid_at, ctx.now()) },
       senderNameMismatch: await senderMismatch(ctx.db, d),
     });
     const outcome = await applyRiskDecision(ctx, d, risk);

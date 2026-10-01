@@ -1,18 +1,23 @@
 {
-  "name": "web",
+  "name": "loops-trd-web",
   "version": "0.1.0",
   "private": true,
   "scripts": {
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "e2e": "tsx e2e/run.ts"
   },
   "dependencies": {
     "@fingerprintjs/fingerprintjs": "^5.2.0",
     "@reown/appkit": "^1.8.24",
     "@reown/appkit-adapter-wagmi": "^1.8.24",
     "@tanstack/react-query": "^5.104.0",
+    "@wagmi/connectors": "^6.2.0",
+    "@wagmi/core": "^2.22.1",
     "jose": "^6.2.12",
     "next": "15.5.27",
     "pg": "^8.23.1",
@@ -20,11 +25,12 @@
     "react-dom": "19.1.0",
     "server-only": "^0.0.1",
     "viem": "^2.57.2",
-    "wagmi": "^3.7.7",
+    "wagmi": "^2.19.5",
     "zod": "^4.6.5"
   },
   "devDependencies": {
     "@electric-sql/pglite": "^0.5.8",
+    "@electric-sql/pglite-socket": "^0.2.11",
     "@eslint/eslintrc": "^3",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^22.20.4",
@@ -34,7 +40,12 @@
     "eslint": "^9",
     "eslint-config-next": "15.5.27",
     "tailwindcss": "^4",
+    "tsx": "^4.23.15",
     "typescript": "^5",
     "vitest": "^5.0.3"
+  },
+  "overrides": {
+    "@wagmi/connectors": "$@wagmi/connectors",
+    "@wagmi/core": "$@wagmi/core"
   }
 }

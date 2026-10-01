@@ -192,15 +192,22 @@ describe("Антифрод — шар 3 (комбінації) і рішення
     expect(r.combos.map((c) => c.id)).not.toContain("new_account_device_big_amount");
   });
 
+  it("перша невелика угода двох нових учасників на нових пристроях — середній ризик, не заморозка", () => {
+    const fresh = { accountAgeDays: 0, successfulDeals: 0, device: { hash: "d", firstSeenHoursAgo: 0.1, sharedWithUsers: 0 }, medianAmount: null };
+    const r = evaluate(input({ amountUsdt: 50 }, fresh, fresh), cfg);
+    expect(r.level).toBe("medium");
+    expect(r.decision).toBe("confirm");
+  });
+
   it("середній ризик → додаткове підтвердження", () => {
-    const r = evaluate(input({}, { accountAgeDays: 1, successfulDeals: 0, ipSharedWithUsers: 1 }), cfg); // 15 + 10 + 10 = 35
-    expect(r.score).toBe(35);
+    const r = evaluate(input({}, { accountAgeDays: 1, successfulDeals: 0, ipSharedWithUsers: 1, proxySuspected: true }), cfg); // 10 + 5 + 10 + 15 = 40
+    expect(r.score).toBe(40);
     expect(r.level).toBe("medium");
     expect(r.decision).toBe("confirm");
   });
 
   it("пороги редагуються", () => {
-    const r = evaluate(input({}, { accountAgeDays: 1, successfulDeals: 0, ipSharedWithUsers: 1 }), { ...cfg, thresholds: { medium: 50, high: 80 } });
+    const r = evaluate(input({}, { accountAgeDays: 1, successfulDeals: 0, ipSharedWithUsers: 1, proxySuspected: true }), { ...cfg, thresholds: { medium: 50, high: 80 } });
     expect(r.level).toBe("low");
   });
 
@@ -245,7 +252,7 @@ describe("Налаштування", () => {
     const m = mergeConfig({ thresholds: { medium: 20 }, signals: { ip_shared: { weight: 3 } } });
     expect(m.thresholds).toEqual({ medium: 20, high: 60 });
     expect(m.signals.ip_shared.weight).toBe(3);
-    expect(m.signals.device_new.weight).toBe(10);
+    expect(m.signals.device_new.weight).toBe(DEFAULT_CONFIG.signals.device_new.weight);
   });
 
   let db: Db;

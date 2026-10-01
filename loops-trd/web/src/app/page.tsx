@@ -1,103 +1,83 @@
-import Image from "next/image";
+"use client";
+
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useEffect } from "react";
+import { Button, LogoMark } from "@/components/ui";
+import { useMe } from "@/components/session";
+
+const features = [
+  { t: "Лише за запрошенням", d: "Жодної відкритої реєстрації. Вхід — одноразовий інвайт-код від адміністратора та підпис гаманця (SIWE)." },
+  { t: "Ескроу-смарт-контракт", d: "USDT блокуються в контракті до підтвердження оплати. Автоповернення продавцю через 30 хв без оплати." },
+  { t: "Антифрод у три шари", d: "Чорні списки й ліміти, сигнали ризику з поясненнями, комбіновані правила. Підозрілі угоди заморожуються." },
+  { t: "Спори та арбітраж", d: "Модератор розглядає й рекомендує, остаточне рішення — адміністратор, виконується контрактом." },
+];
 
 export default function Home() {
-  return (
-    <div className="font-sans grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20">
-      <main className="flex flex-col gap-[32px] row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="font-mono list-inside list-decimal text-sm/6 text-center sm:text-left">
-          <li className="mb-2 tracking-[-.01em]">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] font-mono font-semibold px-1 py-0.5 rounded">
-              src/app/page.tsx
-            </code>
-            .
-          </li>
-          <li className="tracking-[-.01em]">
-            Save and see your changes instantly.
-          </li>
-        </ol>
+  const me = useMe();
+  const router = useRouter();
+  useEffect(() => {
+    const a = me.data?.actor;
+    if (a) router.replace(a.status === "approved" ? "/market" : a.profile_completed ? "/account" : "/onboarding");
+  }, [me.data, router]);
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:w-auto"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 w-full sm:w-auto md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
+  return (
+    <div className="py-6 sm:py-14">
+      <section className="max-w-3xl">
+        <div className="inline-flex items-center gap-2 rounded-full border border-line bg-surface/70 px-3 py-1 text-xs text-ink-2">
+          <span className="h-1.5 w-1.5 rounded-full bg-brand-2" /> BNB Smart Chain Testnet · тестові кошти
+        </div>
+        <h1 className="mt-5 text-4xl sm:text-6xl font-semibold tracking-tight leading-[1.05]">
+          Обмін <span className="brand-text">USDT ⇄ UAH</span>
+          <br />
+          між своїми.
+        </h1>
+        <p className="mt-5 max-w-xl text-[15px] sm:text-base text-ink-2 leading-relaxed">
+          Loops Trd — закрита P2P-площадка для друзів. Кошти продавця тримає ескроу-контракт, гривня йде напряму з картки на картку,
+          а антифрод стежить, щоб ніхто не підтвердив угоду «за скріншотом».
+        </p>
+        <div className="mt-8 flex flex-wrap gap-3">
+          <Link href="/login">
+            <Button size="lg">Увійти з гаманцем</Button>
+          </Link>
+          <a href="#how">
+            <Button size="lg" variant="secondary">
+              Як це працює
+            </Button>
           </a>
         </div>
-      </main>
-      <footer className="row-start-3 flex gap-[24px] flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
+      </section>
+
+      <section className="mt-14 grid gap-3 sm:grid-cols-2">
+        {features.map((f) => (
+          <div key={f.t} className="rounded-2xl border border-line bg-surface/70 p-5">
+            <div className="text-[15px] font-semibold">{f.t}</div>
+            <p className="mt-1.5 text-sm text-ink-2 leading-relaxed">{f.d}</p>
+          </div>
+        ))}
+      </section>
+
+      <section id="how" className="mt-14">
+        <h2 className="text-xl font-semibold">Як проходить угода</h2>
+        <ol className="mt-5 grid gap-3 sm:grid-cols-5">
+          {[
+            "Покупець відгукується на оголошення",
+            "Продавець вносить USDT в ескроу",
+            "Покупець платить гривнею і тисне «Я оплатив»",
+            "Продавець бачить кошти в банку і підтверджує",
+            "Контракт відправляє USDT покупцю",
+          ].map((s, i) => (
+            <li key={s} className="rounded-2xl border border-line bg-surface/70 p-4">
+              <div className="h-7 w-7 rounded-lg brand-gradient text-[#0b0b12] text-sm font-bold flex items-center justify-center">{i + 1}</div>
+              <p className="mt-3 text-sm text-ink-2">{s}</p>
+            </li>
+          ))}
+        </ol>
+        <div className="mt-6 flex items-center gap-3 rounded-2xl border border-warn/25 bg-warn/5 p-4 text-sm text-ink-2">
+          <LogoMark size={22} />
+          Підтверджуйте отримання лише після надходження коштів у банк, не за скріншотом.
+        </div>
+      </section>
     </div>
   );
 }

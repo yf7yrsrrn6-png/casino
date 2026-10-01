@@ -43,7 +43,15 @@ export async function moderationQueue(ctx: Ctx, actor: Actor) {
          order by d.frozen desc, d.created_at`,
       )
     ).rows;
-    return { disputes, flagged };
+    const resolvedUnlabeled = (
+      await tx.query(
+        `select ds.*, d.amount_usdt, d.status as deal_status, sp.display_name as seller_name, bp.display_name as buyer_name
+         from disputes ds join deals d on d.id = ds.deal_id
+         left join public_profiles sp on sp.id = d.seller_id left join public_profiles bp on bp.id = d.buyer_id
+         where ds.status = 'resolved' and ds.fraud_label is null order by ds.resolved_at desc limit 50`,
+      )
+    ).rows;
+    return { disputes, flagged, resolvedUnlabeled };
   });
 }
 
@@ -244,8 +252,10 @@ export async function dealEventsLog(ctx: Ctx, actor: Actor, limit = 200) {
 
 export async function antifraudOverview(ctx: Ctx, actor: Actor) {
   requireStaff(actor);
+  const config = await loadConfig(ctx.db);
+  const stats = await signalStats(ctx.db);
   return asUser(ctx.db, actor.id, async (tx) => ({
-    config: await loadConfig(ctx.db),
+    config,
     queue: (
       await tx.query(
         `select ra.*, p.display_name, p.wallet_address, d.status as deal_status, d.amount_usdt, d.frozen
@@ -253,7 +263,7 @@ export async function antifraudOverview(ctx: Ctx, actor: Actor) {
          where ra.level <> 'low' order by ra.created_at desc limit 100`,
       )
     ).rows,
-    stats: await signalStats(ctx.db),
+    stats,
     blacklist: (await tx.query(`select * from blacklist order by created_at desc`)).rows,
   }));
 }

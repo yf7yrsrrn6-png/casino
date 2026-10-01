@@ -27,7 +27,8 @@ const config: HardhatUserConfig = {
     settings: { optimizer: { enabled: true, runs: 200 }, evmVersion: "cancun" },
   },
   networks: {
-    hardhat: { chainId: 31337 },
+    // E2E-тести запускають локальний вузол з chainId 97, щоб збігатися з BSC Testnet.
+    hardhat: { chainId: Number(process.env.HARDHAT_CHAIN_ID || 31337) },
     // Лише тестова мережа. Mainnet свідомо не налаштовано.
     bscTestnet: {
       url: process.env.BSC_TESTNET_RPC_URL || "https://data-seed-prebsc-1-s1.bnbchain.org:8545",

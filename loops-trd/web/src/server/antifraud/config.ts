@@ -94,7 +94,7 @@ const s = (weight: number, params: Record<string, number> = {}, enabled = true) 
 export const DEFAULT_CONFIG: AntifraudConfig = {
   thresholds: { medium: 30, high: 60 },
   signals: {
-    device_new: s(10, { hours: 24 }),
+    device_new: s(5, { hours: 24 }),
     device_unknown: s(10),
     device_shared: s(30),
     ip_shared: s(10),
@@ -109,8 +109,8 @@ export const DEFAULT_CONFIG: AntifraudConfig = {
     amount_large: s(10, { amount: 500 }),
     unusual_hour: s(5, { startHour: 1, endHour: 6 }),
     too_fast: s(15, { minPaidSeconds: 60, minReleaseSeconds: 60 }),
-    account_new: s(15, { days: 7 }),
-    no_history: s(10),
+    account_new: s(10, { days: 7 }),
+    no_history: s(5),
     dispute_history: s(20, { maxLost: 0 }),
     sender_name_mismatch: s(40),
     aml_medium: s(25),
