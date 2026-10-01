@@ -1,6 +1,6 @@
 import { ethers } from "hardhat";
 import { HardhatEthersSigner } from "@nomicfoundation/hardhat-ethers/signers";
-import { P2PEscrow } from "../typechain-types";
+import { LoopsTrdEscrow } from "../typechain-types";
 
 export const Status = {
   None: 0n,
@@ -17,13 +17,13 @@ export const toId = (s: string) => ethers.id(s);
 
 /** Підпис EIP-712 дозволу на створення угоди (як це робить сервер антифроду). */
 export async function signCreateDeal(
-  escrow: P2PEscrow,
+  escrow: LoopsTrdEscrow,
   signer: HardhatEthersSigner,
   p: { dealId: string; seller: string; buyer: string; amount: bigint; reviewRequired: boolean; expiry: bigint },
 ) {
   const { chainId } = await ethers.provider.getNetwork();
   return signer.signTypedData(
-    { name: "P2PEscrow", version: "1", chainId, verifyingContract: await escrow.getAddress() },
+    { name: "LoopsTrdEscrow", version: "1", chainId, verifyingContract: await escrow.getAddress() },
     {
       CreateDeal: [
         { name: "dealId", type: "bytes32" },

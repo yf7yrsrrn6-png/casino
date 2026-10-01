@@ -9,7 +9,7 @@ import {Pausable} from "@openzeppelin/contracts/utils/Pausable.sol";
 import {EIP712} from "@openzeppelin/contracts/utils/cryptography/EIP712.sol";
 import {ECDSA} from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 
-/// @title P2PEscrow — ескроу для закритої P2P-площадки USDT ↔ UAH.
+/// @title LoopsTrdEscrow — ескроу для закритої P2P-площадки Loops Trd (USDT ↔ UAH).
 /// @notice Життєвий цикл угоди:
 ///   createDeal (продавець, з підписом сервера-антифроду)
 ///   → deposit (продавець вносить USDT)
@@ -19,7 +19,7 @@ import {ECDSA} from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 ///   Будь-яка сторона може відкрити спір; вирішує лише ARBITER_ROLE (адмін).
 ///   Антифрод (FREEZER_ROLE) може заморозити угоду — тоді кошти не рухаються до рішення адміна.
 /// @dev Модератори не мають жодної ролі в контракті й не можуть рухати кошти.
-contract P2PEscrow is AccessControl, ReentrancyGuard, Pausable, EIP712 {
+contract LoopsTrdEscrow is AccessControl, ReentrancyGuard, Pausable, EIP712 {
     using SafeERC20 for IERC20;
 
     /// @notice Адмін-арбітр: resolveDispute, unfreezeDeal.
@@ -102,7 +102,7 @@ contract P2PEscrow is AccessControl, ReentrancyGuard, Pausable, EIP712 {
     error InvalidSplit();
     error InvalidPaymentWindow();
 
-    constructor(IERC20 token_, address admin) EIP712("P2PEscrow", "1") {
+    constructor(IERC20 token_, address admin) EIP712("LoopsTrdEscrow", "1") {
         if (address(token_) == address(0) || admin == address(0)) revert ZeroAddress();
         token = token_;
         _grantRole(DEFAULT_ADMIN_ROLE, admin);

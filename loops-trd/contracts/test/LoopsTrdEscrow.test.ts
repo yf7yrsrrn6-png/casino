@@ -7,11 +7,11 @@ import { Status, toId, signCreateDeal } from "./helpers";
 const AMOUNT = ethers.parseEther("100");
 const WINDOW = 30 * 60;
 
-describe("P2PEscrow", () => {
+describe("LoopsTrdEscrow", () => {
   async function deployFixture() {
     const [admin, signer, freezer, seller, buyer, stranger, moderator] = await ethers.getSigners();
     const usdt = await ethers.deployContract("MockUSDT", [admin.address]);
-    const escrow = await ethers.deployContract("P2PEscrow", [await usdt.getAddress(), admin.address]);
+    const escrow = await ethers.deployContract("LoopsTrdEscrow", [await usdt.getAddress(), admin.address]);
 
     await escrow.grantRole(await escrow.SIGNER_ROLE(), signer.address);
     await escrow.grantRole(await escrow.FREEZER_ROLE(), freezer.address);
@@ -66,7 +66,7 @@ describe("P2PEscrow", () => {
 
     it("відхиляє нульові адреси", async () => {
       const { usdt, admin } = await loadFixture(deployFixture);
-      const F = await ethers.getContractFactory("P2PEscrow");
+      const F = await ethers.getContractFactory("LoopsTrdEscrow");
       await expect(F.deploy(ethers.ZeroAddress, admin.address)).to.be.revertedWithCustomError(F, "ZeroAddress");
       await expect(F.deploy(await usdt.getAddress(), ethers.ZeroAddress)).to.be.revertedWithCustomError(
         F,
@@ -106,7 +106,7 @@ describe("P2PEscrow", () => {
       const { chainId } = await ethers.provider.getNetwork();
       const value = { dealId: toId("h"), seller: seller.address, buyer: buyer.address, amount: 1n, reviewRequired: false, expiry: 9n };
       const expected = ethers.TypedDataEncoder.hash(
-        { name: "P2PEscrow", version: "1", chainId, verifyingContract: await escrow.getAddress() },
+        { name: "LoopsTrdEscrow", version: "1", chainId, verifyingContract: await escrow.getAddress() },
         {
           CreateDeal: [
             { name: "dealId", type: "bytes32" },
@@ -711,7 +711,7 @@ describe("P2PEscrow", () => {
     it("зловмисний токен не може повторно викликати deposit/confirmRelease/cancel/resolveDispute", async () => {
       const [admin, signer, seller, buyer] = await ethers.getSigners();
       const evil = await ethers.deployContract("ReentrantToken");
-      const escrow = await ethers.deployContract("P2PEscrow", [await evil.getAddress(), admin.address]);
+      const escrow = await ethers.deployContract("LoopsTrdEscrow", [await evil.getAddress(), admin.address]);
       await escrow.grantRole(await escrow.SIGNER_ROLE(), signer.address);
       await evil.mint(seller.address, AMOUNT * 10n);
       await evil.connect(seller).approve(await escrow.getAddress(), ethers.MaxUint256);

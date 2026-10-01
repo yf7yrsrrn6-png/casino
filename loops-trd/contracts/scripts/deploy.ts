@@ -3,7 +3,7 @@ import fs from "fs";
 import path from "path";
 
 /**
- * Деплой MockUSDT + P2PEscrow.
+ * Деплой MockUSDT + LoopsTrdEscrow.
  *   npx hardhat run scripts/deploy.ts --network bscTestnet
  *
  * ENV:
@@ -32,10 +32,10 @@ async function main() {
   }
 
   // Деплоєр тимчасово адмін, щоб видати ролі; потім права передаються ADMIN_ADDRESS.
-  const escrow = await ethers.deployContract("P2PEscrow", [usdtAddress, deployer.address]);
+  const escrow = await ethers.deployContract("LoopsTrdEscrow", [usdtAddress, deployer.address]);
   await escrow.waitForDeployment();
   const escrowAddress = await escrow.getAddress();
-  console.log(`P2PEscrow: ${escrowAddress}`);
+  console.log(`LoopsTrdEscrow: ${escrowAddress}`);
 
   if (backend) {
     await (await escrow.grantRole(await escrow.SIGNER_ROLE(), backend)).wait();

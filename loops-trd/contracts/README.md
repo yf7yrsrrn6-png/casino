@@ -1,13 +1,13 @@
-# P2P Escrow — смарт-контракти (BSC Testnet)
+# Loops Trd — смарт-контракти (BSC Testnet)
 
-`P2PEscrow` + `MockUSDT` для закритої P2P-площадки USDT ↔ UAH. **Лише тестова мережа.**
+`LoopsTrdEscrow` + `MockUSDT` для закритої P2P-площадки Loops Trd (USDT ↔ UAH). **Лише тестова мережа.**
 
 ## Команди
 
 ```bash
 npm install
 npm test                 # 65 тестів
-npm run coverage         # покриття (100% рядків/гілок для P2PEscrow і MockUSDT)
+npm run coverage         # покриття (100% рядків/гілок для LoopsTrdEscrow і MockUSDT)
 npm run deploy:testnet   # деплой у BSC Testnet (потрібен .env, див. .env.example)
 ```
 
