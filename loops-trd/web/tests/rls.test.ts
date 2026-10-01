@@ -50,10 +50,15 @@ describe("RLS: права доступу в базі даних", () => {
       expect(await count(carol, `select * from deals`)).toBe(0);
     });
     it("чат, журнал і спори чужої угоди недоступні", async () => {
-      for (const t of ["deal_messages", "deal_events", "disputes"]) {
+      for (const t of ["deal_messages", "disputes"]) {
         expect(await count(carol, `select * from ${t}`), t).toBe(0);
         expect(await count(alice, `select * from ${t}`), t).toBe(1);
       }
+      expect(await count(carol, `select id, action from deal_events`)).toBe(0);
+      expect(await count(alice, `select id, action from deal_events`)).toBe(1);
+    });
+    it("службові деталі журналу (пояснення антифроду) недоступні навіть сторонам угоди", async () => {
+      await expect(count(alice, `select details from deal_events`)).rejects.toThrow(/permission denied/);
     });
     it("сторонній не може написати в чат чужої угоди", async () => {
       await expect(
@@ -162,6 +167,36 @@ describe("RLS: права доступу в базі даних", () => {
       await expect(asUser(db, mod.actor.id, (tx) => tx.query(`update deals set status = 'resolved'`))).rejects.toThrow(/permission denied/);
       await expect(asUser(db, mod.actor.id, (tx) => tx.query(`update disputes set status = 'resolved'`))).rejects.toThrow(/permission denied/);
     });
+  });
+
+  it("службові таблиці (ліміти запитів, відкликані сесії, курсор) недоступні; системний журнал — лише адміну", async () => {
+    for (const t of ["rate_limits", "revoked_sessions", "chain_cursor"]) {
+      await expect(count(admin, `select * from ${t}`), t).rejects.toThrow(/permission denied/);
+    }
+    await db.query(`insert into system_events (level, source, message) values ('error', 'test', 'x')`);
+    expect(await count(admin, `select * from system_events`)).toBe(1);
+    expect(await count(mod, `select * from system_events`)).toBe(0);
+    expect(await count(alice, `select * from system_events`)).toBe(0);
+  });
+
+  it("публічні картки бачать лише підтверджені учасники", async () => {
+    expect(await count(alice, `select * from public_profiles`)).toBeGreaterThan(0);
+    expect(await count(pending, `select * from public_profiles`)).toBe(0);
+  });
+
+  it("оголошення: обмеження в БД навіть при прямому записі (способи оплати, кількість)", async () => {
+    await expect(
+      asUser(db, carol.actor.id, (tx) =>
+        tx.query(`insert into offers (user_id, side, price_uah, min_usdt, max_usdt, payment_methods) values ($1, 'sell', 40, 1, 2, '{"Bitcoin"}')`, [carol.actor.id]),
+      ),
+    ).rejects.toThrow(/offers_payment_methods_allowed/);
+    await expect(
+      asUser(db, carol.actor.id, async (tx) => {
+        for (let i = 0; i < 11; i++) {
+          await tx.query(`insert into offers (user_id, side, price_uah, min_usdt, max_usdt, payment_methods) values ($1, 'sell', 40, 1, 2, '{Monobank}')`, [carol.actor.id]);
+        }
+      }),
+    ).rejects.toThrow(/Не більше 10/);
   });
 
   it("анонім без JWT нічого не бачить", async () => {

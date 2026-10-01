@@ -46,6 +46,13 @@ export async function loginWithSiwe(ctx: Ctx, input: z.infer<typeof loginSchema>
   const msg = parseSiweMessage(input.message);
   if (!msg.address || !msg.nonce || !msg.domain || !msg.chainId) throw badRequest("Некоректне SIWE-повідомлення");
   if (msg.domain !== ctx.domain) throw badRequest(`Невірний домен у повідомленні (${msg.domain})`);
+  let uriHost: string | null = null;
+  try {
+    uriHost = msg.uri ? new URL(msg.uri).host : null;
+  } catch {
+    uriHost = null;
+  }
+  if (uriHost !== ctx.domain) throw badRequest("Невірна адреса сайту в повідомленні");
   if (msg.chainId !== ctx.chainId) throw badRequest("Невірна мережа: потрібна BNB Smart Chain Testnet");
   const now = ctx.now();
   if (msg.expirationTime && msg.expirationTime < now) throw badRequest("Повідомлення прострочене");

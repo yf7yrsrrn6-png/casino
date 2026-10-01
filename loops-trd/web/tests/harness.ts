@@ -60,6 +60,15 @@ export class FakeEscrow implements EscrowGateway {
   calls: string[] = [];
   now = Math.floor(Date.now() / 1000);
   window = 30 * 60;
+  grace = 15 * 60;
+  block = BigInt(100);
+  /** Журнал «подій» для індексатора: [номер блоку, dealId]. */
+  events: [bigint, string][] = [];
+  gas = "1.0";
+  private touch(id: string) {
+    this.block += BigInt(1);
+    this.events.push([this.block, id]);
+  }
 
   async signCreateDeal(p: { chainDealId: Hex; reviewRequired: boolean }) {
     this.calls.push(`sign:${p.chainDealId}:${p.reviewRequired}`);
@@ -78,6 +87,7 @@ export class FakeEscrow implements EscrowGateway {
         amount: BigInt(0),
         fundedAt: 0,
         paymentDeadline: 0,
+        cancelAvailableAt: 0,
         paidAt: 0,
         status: "None",
         frozen: false,
@@ -103,7 +113,7 @@ export class FakeEscrow implements EscrowGateway {
   async cancel(id: Hex) {
     const d = this.get(id);
     if (d.frozen) throw new Error("DealIsFrozen");
-    if (d.status !== "Funded" || this.now <= d.paymentDeadline) throw new Error("PaymentWindowActive");
+    if (d.status !== "Funded" || this.now <= d.cancelAvailableAt) throw new Error("PaymentWindowActive");
     d.status = "Cancelled";
     this.calls.push(`cancel:${id}`);
     return "0xc1" as Hex;
@@ -115,6 +125,15 @@ export class FakeEscrow implements EscrowGateway {
   async blockTime() {
     return this.now;
   }
+  async latestBlock() {
+    return this.block;
+  }
+  async dealIdsInBlocks(from: bigint, to: bigint) {
+    return [...new Set(this.events.filter(([b]) => b >= from && b <= to).map(([, id]) => id as Hex))];
+  }
+  async signerBalance() {
+    return { address: "0x00000000000000000000000000000000000b4c4e", balance: this.gas };
+  }
   resolutions = new Map<string, { toBuyer: bigint; toSeller: bigint }>();
 
   // ── дії «користувачів» у контракті ──
@@ -125,12 +144,14 @@ export class FakeEscrow implements EscrowGateway {
       amount: toUnits(String(amountUsdt)),
       fundedAt: this.now,
       paymentDeadline: this.now + this.window,
+      cancelAvailableAt: this.now + this.window + this.grace,
       paidAt: 0,
       status: "Funded",
       frozen: false,
       reviewRequired: true,
       reviewApproved: false,
     });
+    this.touch(id);
   }
   userMarkPaid(id: Hex) {
     const d = this.get(id);
@@ -138,6 +159,7 @@ export class FakeEscrow implements EscrowGateway {
     if (d.status !== "Funded") throw new Error("InvalidStatus");
     d.status = "Paid";
     d.paidAt = this.now;
+    this.touch(id);
   }
   userConfirmRelease(id: Hex) {
     const d = this.get(id);
@@ -145,11 +167,13 @@ export class FakeEscrow implements EscrowGateway {
     if (d.frozen) throw new Error("DealIsFrozen");
     if (d.reviewRequired && !d.reviewApproved) throw new Error("ReviewPending");
     d.status = "Released";
+    this.touch(id);
   }
   userOpenDispute(id: Hex) {
     const d = this.get(id);
     if (d.status !== "Funded" && d.status !== "Paid") throw new Error("InvalidStatus");
     d.status = "Disputed";
+    this.touch(id);
   }
   adminResolve(id: Hex, toBuyer: bigint) {
     const d = this.get(id);
@@ -157,6 +181,7 @@ export class FakeEscrow implements EscrowGateway {
     d.status = "Resolved";
     d.frozen = false;
     this.resolutions.set(id, { toBuyer, toSeller: d.amount - toBuyer });
+    this.touch(id);
   }
 }
 

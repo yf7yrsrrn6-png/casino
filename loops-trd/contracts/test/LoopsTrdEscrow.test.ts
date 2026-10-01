@@ -6,6 +6,7 @@ import { Status, toId, signCreateDeal } from "./helpers";
 
 const AMOUNT = ethers.parseEther("100");
 const WINDOW = 30 * 60;
+const GRACE = 15 * 60;
 
 describe("LoopsTrdEscrow", () => {
   async function deployFixture() {
@@ -399,10 +400,14 @@ describe("LoopsTrdEscrow", () => {
       await expect(escrow.connect(stranger).cancel(id)).to.be.revertedWithCustomError(escrow, "PaymentWindowActive");
     });
 
-    it("автоскасування: через 30 хв без оплати будь-хто (кіпер сервера) повертає кошти продавцю", async () => {
+    it("автоскасування: після 30 хв + пільгового періоду будь-хто (кіпер сервера) повертає кошти продавцю", async () => {
       const { escrow, usdt, seller, stranger, funded } = await loadFixture(deployFixture);
       const id = await funded();
       await time.increase(WINDOW + 1);
+      // одразу після дедлайну — ще пільговий період: покупець, що вже заплатив, встигає відкрити спір
+      await expect(escrow.connect(stranger).cancel(id)).to.be.revertedWithCustomError(escrow, "PaymentWindowActive");
+      await expect(escrow.connect(seller).cancel(id)).to.be.revertedWithCustomError(escrow, "PaymentWindowActive");
+      await time.increase(GRACE);
       const tx = escrow.connect(stranger).cancel(id);
       await expect(tx).to.emit(escrow, "DealCancelled").withArgs(id, stranger.address, AMOUNT);
       await expect(tx).to.changeTokenBalances(usdt, [escrow, seller], [-AMOUNT, AMOUNT]);
@@ -625,14 +630,14 @@ describe("LoopsTrdEscrow", () => {
 
     it("розморожування Funded-угоди з запасом часу не скорочує дедлайн", async () => {
       const { escrow, admin, freezer, funded } = await loadFixture(deployFixture);
-      await escrow.connect(admin).setPaymentWindow(5 * 60);
-      const id = await funded();
+      // депозит з вікном 24 год, потім вікно скорочено до 5 хв: розморожування не має скорочувати дедлайн
       await escrow.connect(admin).setPaymentWindow(24 * 60 * 60);
-      await escrow.connect(admin).setPaymentWindow(WINDOW);
+      const id = await funded();
+      await escrow.connect(admin).setPaymentWindow(5 * 60);
       const before = (await escrow.getDeal(id)).paymentDeadline;
       await escrow.connect(freezer).freezeDeal(id, ethers.ZeroHash);
       await escrow.connect(admin).unfreezeDeal(id);
-      expect((await escrow.getDeal(id)).paymentDeadline).to.be.greaterThanOrEqual(before);
+      expect((await escrow.getDeal(id)).paymentDeadline).to.equal(before);
     });
 
     it("не можна розморозити незаморожену угоду", async () => {
@@ -760,6 +765,124 @@ describe("LoopsTrdEscrow", () => {
         escrow,
         "ReentrancyGuardReentrantCall",
       );
+    });
+  });
+
+  describe("пільговий період і дедлайни", () => {
+    it("покупець, що не встиг натиснути «Я оплатив», відкриває спір у пільговий період — скасування вже неможливе", async () => {
+      const { escrow, seller, buyer, stranger, funded } = await loadFixture(deployFixture);
+      const id = await funded();
+      await time.increase(WINDOW + 60);
+      await expect(escrow.connect(buyer).markPaid(id)).to.be.revertedWithCustomError(escrow, "PaymentWindowExpired");
+      await expect(escrow.connect(buyer).openDispute(id)).to.emit(escrow, "DisputeOpened");
+      await time.increase(GRACE * 4);
+      for (const s of [seller, stranger]) {
+        await expect(escrow.connect(s).cancel(id)).to.be.revertedWithCustomError(escrow, "InvalidStatus");
+      }
+    });
+
+    it("effectiveDeadline і cancelAvailableAt", async () => {
+      const { escrow, create, funded } = await loadFixture(deployFixture);
+      const a = await create();
+      expect(await escrow.effectiveDeadline(a)).to.equal(0n);
+      expect(await escrow.cancelAvailableAt(a)).to.equal(0n);
+      const b = await funded();
+      const d = await escrow.getDeal(b);
+      expect(await escrow.effectiveDeadline(b)).to.equal(d.paymentDeadline);
+      expect(await escrow.cancelAvailableAt(b)).to.equal(d.paymentDeadline + BigInt(GRACE));
+    });
+
+    it("адмін змінює пільговий період у межах 5 хв … 24 год", async () => {
+      const { escrow, admin, stranger } = await loadFixture(deployFixture);
+      await expect(escrow.connect(admin).setCancelGracePeriod(600)).to.emit(escrow, "CancelGracePeriodUpdated").withArgs(GRACE, 600);
+      await expect(escrow.connect(admin).setCancelGracePeriod(60)).to.be.revertedWithCustomError(escrow, "InvalidGracePeriod");
+      await expect(escrow.connect(admin).setCancelGracePeriod(25 * 3600)).to.be.revertedWithCustomError(escrow, "InvalidGracePeriod");
+      await expect(escrow.connect(stranger).setCancelGracePeriod(600)).to.be.revertedWithCustomError(escrow, "AccessControlUnauthorizedAccount");
+    });
+  });
+
+  describe("екстрена пауза", () => {
+    it("зупиняє markPaid, confirmRelease, approveRelease (як і createDeal/deposit)", async () => {
+      const { escrow, admin, seller, buyer, freezer, funded, paid } = await loadFixture(deployFixture);
+      const f = await funded();
+      const p = await paid({ reviewRequired: true });
+      await escrow.connect(admin).pause();
+      await expect(escrow.connect(buyer).markPaid(f)).to.be.revertedWithCustomError(escrow, "EnforcedPause");
+      await expect(escrow.connect(freezer).approveRelease(p)).to.be.revertedWithCustomError(escrow, "EnforcedPause");
+      await expect(escrow.connect(seller).confirmRelease(f)).to.be.revertedWithCustomError(escrow, "EnforcedPause");
+    });
+
+    it("на паузі завжди доступні виходи: cancel покупцем, спір, заморозка, рішення адміна, розморожування", async () => {
+      const { escrow, usdt, admin, seller, buyer, freezer, funded, paid } = await loadFixture(deployFixture);
+      const a = await funded();
+      const b = await paid();
+      const c = await paid();
+      await escrow.connect(admin).pause();
+      await expect(escrow.connect(buyer).cancel(a)).to.changeTokenBalances(usdt, [seller], [AMOUNT]);
+      await expect(escrow.connect(buyer).openDispute(b)).to.emit(escrow, "DisputeOpened");
+      await expect(escrow.connect(admin).resolveDispute(b, AMOUNT)).to.changeTokenBalances(usdt, [buyer], [AMOUNT]);
+      await escrow.connect(freezer).freezeDeal(c, ethers.ZeroHash);
+      await escrow.connect(admin).unfreezeDeal(c);
+      await escrow.connect(freezer).freezeDeal(c, ethers.ZeroHash);
+      await expect(escrow.connect(admin).resolveDispute(c, 0)).to.changeTokenBalances(usdt, [seller], [AMOUNT]);
+    });
+
+    it("час паузи не зараховується у вікно оплати — сторонній не скасує угоду через паузу", async () => {
+      const { escrow, admin, buyer, stranger, funded } = await loadFixture(deployFixture);
+      const id = await funded();
+      const before = await escrow.effectiveDeadline(id);
+      await time.increase(10 * 60);
+      await escrow.connect(admin).pause();
+      await time.increase(WINDOW * 3);
+      // на паузі дедлайн «рухається» разом із часом
+      expect(await escrow.effectiveDeadline(id)).to.be.greaterThan(before + BigInt(WINDOW * 3) - 2n);
+      await expect(escrow.connect(stranger).cancel(id)).to.be.revertedWithCustomError(escrow, "PaymentWindowActive");
+      await escrow.connect(admin).unpause();
+      expect(await escrow.totalPausedTime()).to.be.greaterThanOrEqual(BigInt(WINDOW * 3));
+      // у покупця лишилось ~20 хв
+      await time.increase(15 * 60);
+      await expect(escrow.connect(buyer).markPaid(id)).to.emit(escrow, "DealPaid");
+    });
+
+    it("угода, профінансована після паузи, не отримує зайвого часу", async () => {
+      const { escrow, admin, funded } = await loadFixture(deployFixture);
+      await escrow.connect(admin).pause();
+      await time.increase(3600);
+      await escrow.connect(admin).unpause();
+      const id = await funded();
+      const d = await escrow.getDeal(id);
+      expect(await escrow.effectiveDeadline(id)).to.equal(d.paymentDeadline);
+    });
+
+    it("розморожування Funded-угоди після паузи дає повне вікно оплати", async () => {
+      const { escrow, admin, freezer, funded } = await loadFixture(deployFixture);
+      const id = await funded();
+      await escrow.connect(freezer).freezeDeal(id, ethers.ZeroHash);
+      await escrow.connect(admin).pause();
+      await time.increase(600);
+      await escrow.connect(admin).unpause();
+      await time.increase(WINDOW * 2);
+      await escrow.connect(admin).unfreezeDeal(id);
+      const now = BigInt(await time.latest());
+      expect(await escrow.effectiveDeadline(id)).to.equal(now + BigInt(WINDOW));
+    });
+  });
+
+  describe("токени з комісією за переказ", () => {
+    it("deposit відхиляє токен, що списує комісію (сума в контракті ≠ сумі угоди)", async () => {
+      const [admin, signer, seller, buyer] = await ethers.getSigners();
+      const fee = await ethers.deployContract("FeeToken");
+      const escrow = await ethers.deployContract("LoopsTrdEscrow", [await fee.getAddress(), admin.address]);
+      await escrow.grantRole(await escrow.SIGNER_ROLE(), signer.address);
+      await fee.mint(seller.address, AMOUNT * 2n);
+      await fee.connect(seller).approve(await escrow.getAddress(), ethers.MaxUint256);
+      const dealId = toId("fee");
+      const expiry = BigInt(await time.latest()) + 600n;
+      const sig = await signCreateDeal(escrow, signer, { dealId, seller: seller.address, buyer: buyer.address, amount: AMOUNT, reviewRequired: false, expiry });
+      await escrow.connect(seller).createDeal(dealId, buyer.address, AMOUNT, false, expiry, sig);
+      await expect(escrow.connect(seller).deposit(dealId))
+        .to.be.revertedWithCustomError(escrow, "UnsupportedToken")
+        .withArgs(AMOUNT, (AMOUNT * 99n) / 100n);
     });
   });
 

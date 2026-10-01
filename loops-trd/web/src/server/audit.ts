@@ -65,3 +65,9 @@ export async function notifyStaff(db: Db, kind: string, title: string, body?: st
     [kind, title, body ?? null, link ?? null, adminsOnly ? ["admin"] : ["admin", "moderator"]],
   );
 }
+
+/** Системні події (помилки кіпера, розбіжності з блокчейном, нестача газу) — видно адміну в журналі. */
+export async function logSystem(db: Db, level: "info" | "warn" | "error", source: string, message: string, context: Record<string, unknown> = {}) {
+  await db.query(`insert into system_events (level, source, message, context) values ($1, $2, $3, $4)`, [level, source, message, JSON.stringify(context)]);
+  if (level === "error") console.error(`[${source}] ${message}`, context);
+}

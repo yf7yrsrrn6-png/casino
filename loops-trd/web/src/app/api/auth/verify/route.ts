@@ -9,4 +9,4 @@ export const POST = route(async ({ req, ctx, meta }) => {
   const res = NextResponse.json({ actor });
   setSessionCookie(res, await signSession({ sub: actor.id, wallet: actor.wallet_address }));
   return res;
-});
+}, { rateLimit: { name: "login", limit: 10, windowSec: 60, by: "ip" } });

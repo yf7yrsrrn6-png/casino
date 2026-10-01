@@ -24,15 +24,32 @@ export interface RequestMeta {
   proxyHints: string[];
 }
 
-export function requestMeta(req: NextRequest | Request): RequestMeta {
-  const h = req.headers;
+const IP_RE = /^(?:\d{1,3}(?:\.\d{1,3}){3}|[0-9a-f:]{2,39})$/i;
+
+/**
+ * IP клієнта з довіреного джерела. Перший запис X-Forwarded-For може підставити сам клієнт,
+ * тому беремо:
+ *  - TRUSTED_IP_HEADER (напр. `x-real-ip` на Vercel, `cf-connecting-ip` за Cloudflare), якщо задано;
+ *  - інакше запис, доданий найближчим довіреним проксі: N-й з кінця X-Forwarded-For (TRUST_PROXY_HOPS, за замовч. 1).
+ */
+export function clientIp(h: Headers): { ip: string | null; spoofHint: boolean } {
+  const trusted = process.env.TRUSTED_IP_HEADER?.toLowerCase();
   const xff = h.get("x-forwarded-for");
   const chain = xff ? xff.split(",").map((s) => s.trim()).filter(Boolean) : [];
-  const ip = chain[0] || h.get("x-real-ip") || null;
+  const hops = Math.max(1, Number(process.env.TRUST_PROXY_HOPS || 1));
+  let ip: string | null;
+  if (trusted) ip = h.get(trusted)?.split(",")[0].trim() || null;
+  else ip = chain.length ? chain[Math.max(0, chain.length - hops)] : null;
+  if (ip && !IP_RE.test(ip)) ip = null;
+  return { ip, spoofHint: chain.length > hops };
+}
+
+export function requestMeta(req: NextRequest | Request): RequestMeta {
+  const h = req.headers;
+  const { ip, spoofHint } = clientIp(h);
   const proxyHints: string[] = [];
-  if (chain.length > 2) proxyHints.push("довгий ланцюг X-Forwarded-For");
+  if (spoofHint) proxyHints.push("ланцюг X-Forwarded-For довший за очікуваний (проксі або спроба підміни IP)");
   if (h.get("via")) proxyHints.push("заголовок Via");
-  if (h.get("forwarded")?.includes("for=") && chain.length > 1) proxyHints.push("заголовок Forwarded");
   const device = h.get("x-device-id");
   return {
     ip,
@@ -57,6 +74,8 @@ export async function getActor(req: NextRequest, db: Db = getDb()): Promise<Acto
   if (!token) return null;
   const claims = await verifySession(token);
   if (!claims) return null;
+  // Сесію відкликано (вихід) — токен більше не діє навіть до закінчення строку.
+  if (await one(db, `select 1 from revoked_sessions where jti = $1`, [claims.jti])) return null;
   const actor = await loadActor(db, claims.sub);
   // Зміна гаманця або блокування анулюють сесію.
   if (!actor || actor.wallet_address !== claims.wallet || actor.status === "blocked") return null;

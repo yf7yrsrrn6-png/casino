@@ -9,6 +9,11 @@ export interface SessionClaims {
   wallet: string;
 }
 
+export interface VerifiedSession extends SessionClaims {
+  jti: string;
+  exp: number;
+}
+
 const key = () => new TextEncoder().encode(env().SESSION_SECRET);
 
 /** JWT сумісний із Supabase (role/aud = authenticated, sub = profiles.id). */
@@ -19,15 +24,16 @@ export async function signSession(c: SessionClaims): Promise<string> {
     .setAudience("authenticated")
     .setIssuer("loops-trd")
     .setIssuedAt()
+    .setJti(crypto.randomUUID())
     .setExpirationTime(`${SESSION_TTL_SECONDS}s`)
     .sign(key());
 }
 
-export async function verifySession(token: string): Promise<SessionClaims | null> {
+export async function verifySession(token: string): Promise<VerifiedSession | null> {
   try {
-    const { payload } = await jwtVerify(token, key(), { audience: "authenticated", issuer: "loops-trd" });
-    if (typeof payload.sub !== "string" || typeof payload.wallet !== "string") return null;
-    return { sub: payload.sub, wallet: payload.wallet };
+    const { payload } = await jwtVerify(token, key(), { audience: "authenticated", issuer: "loops-trd", algorithms: ["HS256"] });
+    if (typeof payload.sub !== "string" || typeof payload.wallet !== "string" || !payload.jti || !payload.exp) return null;
+    return { sub: payload.sub, wallet: payload.wallet, jti: payload.jti, exp: payload.exp };
   } catch {
     return null;
   }

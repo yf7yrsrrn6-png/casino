@@ -93,6 +93,11 @@ export const escrowAbi = [
   },
   {
     "inputs": [],
+    "name": "InvalidGracePeriod",
+    "type": "error"
+  },
+  {
+    "inputs": [],
     "name": "InvalidParties",
     "type": "error"
   },
@@ -151,7 +156,7 @@ export const escrowAbi = [
     "inputs": [
       {
         "internalType": "uint64",
-        "name": "deadline",
+        "name": "cancelAvailableAt",
         "type": "uint64"
       }
     ],
@@ -218,6 +223,22 @@ export const escrowAbi = [
     "type": "error"
   },
   {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "expected",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "received",
+        "type": "uint256"
+      }
+    ],
+    "name": "UnsupportedToken",
+    "type": "error"
+  },
+  {
     "inputs": [],
     "name": "ZeroAddress",
     "type": "error"
@@ -226,6 +247,25 @@ export const escrowAbi = [
     "inputs": [],
     "name": "ZeroAmount",
     "type": "error"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": false,
+        "internalType": "uint64",
+        "name": "oldPeriod",
+        "type": "uint64"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint64",
+        "name": "newPeriod",
+        "type": "uint64"
+      }
+    ],
+    "name": "CancelGracePeriodUpdated",
+    "type": "event"
   },
   {
     "anonymous": false,
@@ -657,7 +697,33 @@ export const escrowAbi = [
   },
   {
     "inputs": [],
+    "name": "MAX_GRACE_PERIOD",
+    "outputs": [
+      {
+        "internalType": "uint64",
+        "name": "",
+        "type": "uint64"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
     "name": "MAX_PAYMENT_WINDOW",
+    "outputs": [
+      {
+        "internalType": "uint64",
+        "name": "",
+        "type": "uint64"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "MIN_GRACE_PERIOD",
     "outputs": [
       {
         "internalType": "uint64",
@@ -728,6 +794,38 @@ export const escrowAbi = [
         "type": "bytes32"
       }
     ],
+    "name": "cancelAvailableAt",
+    "outputs": [
+      {
+        "internalType": "uint64",
+        "name": "",
+        "type": "uint64"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "cancelGracePeriod",
+    "outputs": [
+      {
+        "internalType": "uint64",
+        "name": "",
+        "type": "uint64"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "bytes32",
+        "name": "dealId",
+        "type": "bytes32"
+      }
+    ],
     "name": "confirmRelease",
     "outputs": [],
     "stateMutability": "nonpayable",
@@ -782,6 +880,25 @@ export const escrowAbi = [
     "name": "deposit",
     "outputs": [],
     "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "bytes32",
+        "name": "dealId",
+        "type": "bytes32"
+      }
+    ],
+    "name": "effectiveDeadline",
+    "outputs": [
+      {
+        "internalType": "uint64",
+        "name": "",
+        "type": "uint64"
+      }
+    ],
+    "stateMutability": "view",
     "type": "function"
   },
   {
@@ -890,6 +1007,11 @@ export const escrowAbi = [
           {
             "internalType": "uint64",
             "name": "paidAt",
+            "type": "uint64"
+          },
+          {
+            "internalType": "uint64",
+            "name": "pauseOffset",
             "type": "uint64"
           },
           {
@@ -1074,6 +1196,19 @@ export const escrowAbi = [
   },
   {
     "inputs": [],
+    "name": "pausedAt",
+    "outputs": [
+      {
+        "internalType": "uint64",
+        "name": "",
+        "type": "uint64"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
     "name": "paymentWindow",
     "outputs": [
       {
@@ -1143,6 +1278,19 @@ export const escrowAbi = [
     "inputs": [
       {
         "internalType": "uint64",
+        "name": "newPeriod",
+        "type": "uint64"
+      }
+    ],
+    "name": "setCancelGracePeriod",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint64",
         "name": "newWindow",
         "type": "uint64"
       }
@@ -1179,6 +1327,19 @@ export const escrowAbi = [
         "internalType": "contract IERC20",
         "name": "",
         "type": "address"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "totalPausedTime",
+    "outputs": [
+      {
+        "internalType": "uint64",
+        "name": "",
+        "type": "uint64"
       }
     ],
     "stateMutability": "view",

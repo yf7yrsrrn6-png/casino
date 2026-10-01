@@ -1,0 +1,24 @@
+# Резервний запуск кіпера Loops Trd (автоскасування, звірка з блокчейном) кожні 5 хв.
+# Основний — Supabase pg_cron щохвилини (loops-trd/web/supabase/cron.sql).
+# Secrets репозиторію: LOOPS_KEEPER_URL (https://…/api/cron/keeper), LOOPS_CRON_SECRET.
+name: Loops Trd keeper
+
+on:
+  schedule:
+    - cron: "*/5 * * * *"
+  workflow_dispatch:
+
+jobs:
+  keeper:
+    if: ${{ vars.LOOPS_KEEPER_ENABLED == 'true' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Call keeper
+        env:
+          URL: ${{ secrets.LOOPS_KEEPER_URL }}
+          SECRET: ${{ secrets.LOOPS_CRON_SECRET }}
+        run: |
+          code=$(curl -sS -o out.json -w '%{http_code}' -H "Authorization: Bearer $SECRET" "$URL")
+          cat out.json; echo
+          test "$code" = "200"

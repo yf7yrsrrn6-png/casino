@@ -99,14 +99,58 @@ describe("Повний цикл угоди", () => {
     expect((await db.query<{ status: string }>(`select status from deals where id = $1`, [d.id])).rows[0].status).toBe("cancelled");
   });
 
-  it("автоскасування: без оплати за 30 хв — кіпер викликає cancel у контракті, кошти повертаються", async () => {
+  it("автоскасування: без оплати за 30 хв + пільговий період — кіпер викликає cancel у контракті", async () => {
     const d = await openDeal();
     await fund(d);
     chain.now += 31 * 60;
+    // пільговий період: покупець ще може відкрити спір — кіпер не скасовує
+    expect((await deals.keeperTick(ctx)).cancelledOnChain).toBe(0);
+    chain.now += 15 * 60;
     const r = await deals.keeperTick(ctx);
     expect(r.cancelledOnChain).toBe(1);
     expect(chain.calls).toContain(`cancel:${d.chain_deal_id}`);
     expect((await db.query<{ status: string }>(`select status from deals where id = $1`, [d.id])).rows[0].status).toBe("cancelled");
+  });
+
+  it("покупець вказав оплату, але не встиг натиснути «Я оплатив» — кіпер заморожує, а не скасовує", async () => {
+    const d = await openDeal();
+    await fund(d);
+    await deals.paidIntent(ctx, buyer.actor, buyerMeta, d.id, { senderName: "Іван Петренко" });
+    chain.now += 31 * 60;
+    const r = await deals.keeperTick(ctx);
+    expect(r.frozenPaidIntent).toBe(1);
+    expect(r.cancelledOnChain).toBe(0);
+    expect(chain.deals.get(d.chain_deal_id)!.frozen).toBe(true);
+    chain.now += 3600;
+    await expect(chain.cancel(d.chain_deal_id)).rejects.toThrow("DealIsFrozen");
+  });
+
+  it("індексатор подій: депозит без відкритої вкладки підхоплюється кіпером одразу, а не після дедлайну", async () => {
+    const d = await openDeal();
+    await deals.getCreateSignature(ctx, seller.actor, d.id);
+    chain.userCreateAndDeposit(d.chain_deal_id, seller.wallet, buyer.wallet, d.amount_usdt); // продавець закрив вкладку — sync не викликано
+    const r = await deals.keeperTick(ctx);
+    expect(r.indexedDeals).toBeGreaterThanOrEqual(1);
+    expect((await db.query<{ status: string }>(`select status from deals where id = $1`, [d.id])).rows[0].status).toBe("funded");
+    const n = (await db.query(`select 1 from notifications where user_id = $1 and title like 'USDT в ескроу%'`, [buyer.actor.id])).rows;
+    expect(n).toHaveLength(1);
+    // повторний запуск не дублює (курсор)
+    expect((await deals.keeperTick(ctx)).indexedDeals).toBe(0);
+  });
+
+  it("звірка: розбіжність кінцевого стану з контрактом фіксується як тривога адміну", async () => {
+    const d = await openDeal();
+    await fund(d);
+    await db.query(`update deals set status = 'released', closed_at = now() where id = $1`, [d.id]); // «зламаний» запис
+    const r = await deals.keeperTick(ctx);
+    expect(r.mismatches + (await db.query(`select 1 from system_events where source = 'reconcile'`)).rows.length).toBeGreaterThan(0);
+  });
+
+  it("попередження про нестачу газу серверного гаманця — одне на 12 год", async () => {
+    chain.gas = "0.001";
+    await deals.keeperTick(ctx);
+    await deals.keeperTick(ctx);
+    expect((await db.query(`select 1 from system_events where source = 'gas'`)).rows).toHaveLength(1);
   });
 
   it("кіпер не скасовує угоду з відкритим спором", async () => {
@@ -209,22 +253,36 @@ describe("Антифрод у процесі угоди (клієнт не мо�
     expect(ra.signals.map((s) => s.code)).toEqual(expect.arrayContaining(["sender_name_mismatch", "device_shared", "combo:shared_device_name_mismatch"]));
   });
 
-  it("середній ризик → потрібен підпис продавця гаманцем; чужий підпис не приймається", async () => {
+  it("невідповідність імені відправника (за словами продавця) → завжди перевірка персоналом, не підпис", async () => {
     const d = await openDeal();
     await fund(d);
     await deals.paidIntent(ctx, buyer.actor, buyerMeta, d.id, { senderName: "Іван Петренко" });
     chain.userMarkPaid(d.chain_deal_id);
     await deals.syncDeal(ctx, d.id);
     ctx.now = () => new Date(Date.now() + 5 * 60_000);
-    // Продавець повідомляє, що ім'я в банку інше → сигнал 40 балів = середній ризик.
     const r = await deals.requestRelease(ctx, seller.actor, sellerMeta, d.id, { senderNameMatches: false, receivedInBank: true });
+    expect(r.status).toBe("needs_staff");
+    expect(() => chain.userConfirmRelease(d.chain_deal_id)).toThrow("ReviewPending");
+    // навіть повторний запит з «ім'я збігається» не обходить перевірку
+    expect((await deals.requestRelease(ctx, seller.actor, sellerMeta, d.id, { senderNameMatches: true, receivedInBank: true })).status).toBe("needs_staff");
+  });
+
+  it("середній ризик → потрібен підпис продавця гаманцем; чужий підпис не приймається", async () => {
+    // поріг середнього ризику 10: «занадто швидке підтвердження» (+15) дає medium
+    await db.query(`insert into antifraud_settings (key, value) values ('config', '{"thresholds":{"medium":10,"high":60}}')`);
+    const d = await openDeal();
+    await fund(d);
+    await deals.paidIntent(ctx, buyer.actor, buyerMeta, d.id, { senderName: "Іван Петренко" });
+    chain.userMarkPaid(d.chain_deal_id);
+    await deals.syncDeal(ctx, d.id);
+    const r = await deals.requestRelease(ctx, seller.actor, sellerMeta, d.id, { senderNameMatches: true, receivedInBank: true });
     expect(r.status).toBe("needs_signature");
     if (r.status !== "needs_signature") return;
     expect(() => chain.userConfirmRelease(d.chain_deal_id)).toThrow("ReviewPending");
 
     await expectHttp(deals.confirmReleaseSignature(ctx, seller.actor, d.id, { nonce: r.nonce, signature: await stranger.sign(r.message) }), 403);
     // nonce використано — потрібен новий
-    const r2 = await deals.requestRelease(ctx, seller.actor, sellerMeta, d.id, { senderNameMatches: false, receivedInBank: true });
+    const r2 = await deals.requestRelease(ctx, seller.actor, sellerMeta, d.id, { senderNameMatches: true, receivedInBank: true });
     if (r2.status !== "needs_signature") throw new Error(r2.status);
     expect(await deals.confirmReleaseSignature(ctx, seller.actor, d.id, { nonce: r2.nonce, signature: await seller.sign(r2.message) })).toEqual({ status: "approved" });
     chain.userConfirmRelease(d.chain_deal_id);
@@ -256,6 +314,29 @@ describe("Права доступу на сервері", () => {
     await expectHttp(deals.openDispute(ctx, stranger.actor, d.id, { reason: "хочу спір" }), 404);
     expect(await deals.listMyDeals(ctx, stranger.actor, { status: "all", role: "all" })).toHaveLength(0);
     expect(await deals.listMyDeals(ctx, buyer.actor, { status: "all", role: "all" })).toHaveLength(1);
+  });
+
+  it("учасник не отримує пояснень антифроду в журналі угоди; персонал — отримує", async () => {
+    const newbie = await createUser(db, { deals: 0, ageDays: 1 });
+    await db.query(`update profiles set single_limit_override = 5000, daily_limit_override = 5000 where id = $1`, [newbie.actor.id]);
+    const offerId = await newOffer(db, seller.actor.id);
+    const d = await deals.createDeal(ctx, newbie.actor, meta({ deviceHash: "brand-new-2" }), { offerId, amountUsdt: 600, paymentMethod: "Monobank" });
+    const member = await deals.getDealView(ctx, newbie.actor, d.id);
+    expect(JSON.stringify(member.events)).not.toMatch(/reasons|score|Новий акаунт/);
+    expect(member.events.some((e) => e.action === "antifraud.frozen")).toBe(true);
+    expect(member.deal.risk_score).toBeNull();
+    const staffView = await deals.getDealView(ctx, mod.actor, d.id);
+    expect(JSON.stringify(staffView.events)).toMatch(/reasons/);
+  });
+
+  it("паралельні запити не обходять денний ліміт", async () => {
+    const offerId = await newOffer(db, seller.actor.id, { max: 5000 });
+    const u = await createUser(db, { deals: 15 });
+    await db.query(`update profiles set single_limit_override = 1000, daily_limit_override = 1000 where id = any($1::uuid[])`, [[u.actor.id, seller.actor.id]]);
+    const res = await Promise.allSettled(
+      [400, 400, 400].map(() => deals.createDeal(ctx, u.actor, meta({ deviceHash: "par-dev" }), { offerId, amountUsdt: 400, paymentMethod: "Monobank" })),
+    );
+    expect(res.filter((x) => x.status === "fulfilled")).toHaveLength(2);
   });
 
   it("покупець не може отримати підпис депозиту чи відпустити кошти", async () => {

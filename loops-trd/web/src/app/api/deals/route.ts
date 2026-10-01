@@ -5,6 +5,6 @@ export const GET = authed({}, async ({ req, ctx, actor }) => ({
   deals: await listMyDeals(ctx, actor, dealFilterSchema.parse(query(req))),
 }));
 
-export const POST = authed({ approved: true }, async ({ req, ctx, actor, meta }) => ({
+export const POST = authed({ approved: true, rateLimit: { name: "deal-create", limit: 10, windowSec: 600 } }, async ({ req, ctx, actor, meta }) => ({
   deal: await createDeal(ctx, actor, meta, await body(req, createDealSchema)),
 }));
