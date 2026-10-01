@@ -170,11 +170,14 @@ describe("LoopsTrdEscrow", () => {
       ).to.be.revertedWithCustomError(escrow, "InvalidSignature");
     });
 
-    it("відхиляє зіпсований підпис", async () => {
+    it("відхиляє зіпсований підпис (неправильна довжина і «нульовий» 65-байтовий підпис)", async () => {
       const { escrow, seller, buyer } = await loadFixture(deployFixture);
       const expiry = BigInt(await time.latest()) + 600n;
       await expect(
         escrow.connect(seller).createDeal(toId("x"), buyer.address, AMOUNT, false, expiry, "0x1234"),
+      ).to.be.revertedWithCustomError(escrow, "InvalidSignature");
+      await expect(
+        escrow.connect(seller).createDeal(toId("x"), buyer.address, AMOUNT, false, expiry, "0x" + "00".repeat(65)),
       ).to.be.revertedWithCustomError(escrow, "InvalidSignature");
     });
 

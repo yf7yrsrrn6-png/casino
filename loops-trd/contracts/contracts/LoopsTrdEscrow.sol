@@ -208,8 +208,11 @@ contract LoopsTrdEscrow is AccessControl, ReentrancyGuard, Pausable, EIP712 {
         if (block.timestamp > expiry) revert SignatureExpired();
 
         bytes32 digest = hashCreateDeal(dealId, msg.sender, buyer, amount, reviewRequired, expiry);
-        (address signer, ECDSA.RecoverError err,) = ECDSA.tryRecover(digest, signature);
-        if (err != ECDSA.RecoverError.NoError || !hasRole(SIGNER_ROLE, signer)) revert InvalidSignature();
+        (address signer, ECDSA.RecoverError err, bytes32 errArg) = ECDSA.tryRecover(digest, signature);
+        // errArg ≠ 0 — некоректна довжина/параметр s; err ≠ NoError — підпис не відновлюється.
+        if (errArg != bytes32(0) || err != ECDSA.RecoverError.NoError || !hasRole(SIGNER_ROLE, signer)) {
+            revert InvalidSignature();
+        }
 
         _deals[dealId] = Deal({
             seller: msg.sender,

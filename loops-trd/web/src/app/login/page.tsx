@@ -101,6 +101,10 @@ export default function LoginPage() {
         Ми ніколи не просимо seed-фразу чи приватний ключ.
         <br />
         Підпис входу не дає доступу до ваших коштів.
+        <br />
+        <a href="/help" className="text-brand-2 hover:underline">
+          Як пройти верифікацію і як проходить угода →
+        </a>
       </p>
     </div>
   );

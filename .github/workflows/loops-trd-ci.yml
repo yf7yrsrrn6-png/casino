@@ -1,0 +1,101 @@
+# CI для Loops Trd: контракти (тести, покриття, Slither), сайт (лінтер, типи, тести, збірка),
+# наскрізні тести (API + браузер Playwright) на локальному вузлі Hardhat. Запускається на кожен push.
+name: Loops Trd CI
+
+on:
+  push:
+    paths: ["loops-trd/**", ".github/workflows/loops-trd-ci.yml"]
+  pull_request:
+    paths: ["loops-trd/**", ".github/workflows/loops-trd-ci.yml"]
+
+concurrency:
+  group: loops-trd-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  contracts:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: loops-trd/contracts
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: loops-trd/contracts/package-lock.json
+      - run: npm ci
+      - run: npx hardhat compile
+      - name: Tests (incl. fuzz/invariants)
+        run: npm test
+        env:
+          FUZZ_RUNS: "150"
+      - name: Coverage
+        run: npm run coverage
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Slither (static analysis)
+        run: |
+          pip install slither-analyzer
+          slither . --hardhat-ignore-compile --filter-paths "node_modules|contracts/test" --exclude-dependencies --fail-medium
+
+  web:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: loops-trd/web
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: loops-trd/web/package-lock.json
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run typecheck
+      - name: Unit/integration tests (Postgres via PGlite, RLS, anti-fraud, flows)
+        run: npm test
+      - run: npm run build
+        env:
+          NEXT_TELEMETRY_DISABLED: "1"
+
+  e2e:
+    runs-on: ubuntu-latest
+    needs: [contracts, web]
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Install
+        run: |
+          npm ci --prefix loops-trd/contracts
+          npm ci --prefix loops-trd/web
+          npx --prefix loops-trd/web playwright install --with-deps chromium
+      - name: API e2e (real local chain + Postgres wire + next start)
+        working-directory: loops-trd/web
+        env:
+          USE_SOLCJS: "false"
+          NEXT_TELEMETRY_DISABLED: "1"
+        run: |
+          npm run build
+          npm run e2e
+      - name: Browser e2e (Playwright)
+        working-directory: loops-trd/web
+        env:
+          USE_SOLCJS: "false"
+          NEXT_TELEMETRY_DISABLED: "1"
+        run: npm run e2e:ui
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: e2e-artifacts
+          path: |
+            loops-trd/web/e2e/*.log
+            loops-trd/web/test-results/
+            loops-trd/web/e2e/playwright-report/
+          retention-days: 7

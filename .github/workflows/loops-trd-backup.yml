@@ -1,0 +1,35 @@
+# Щоденна резервна копія бази Loops Trd (Supabase Postgres), зашифрована GPG (AES256).
+# Secrets: LOOPS_DATABASE_URL (Session pooler, порт 5432), LOOPS_BACKUP_PASSPHRASE (довгий пароль).
+# Variables: LOOPS_BACKUP_ENABLED = true. Копії — артефакти workflow (зберігаються 14 днів).
+# Відновлення — див. loops-trd/docs/BACKUP.md.
+name: Loops Trd backup
+
+on:
+  schedule:
+    - cron: "17 2 * * *"
+  workflow_dispatch:
+
+jobs:
+  backup:
+    if: ${{ vars.LOOPS_BACKUP_ENABLED == 'true' }}
+    runs-on: ubuntu-latest
+    container: postgres:17
+    timeout-minutes: 20
+    steps:
+      - name: Dump + encrypt
+        env:
+          DATABASE_URL: ${{ secrets.LOOPS_DATABASE_URL }}
+          PASSPHRASE: ${{ secrets.LOOPS_BACKUP_PASSPHRASE }}
+        run: |
+          apt-get update -qq && apt-get install -y -qq gnupg >/dev/null
+          f="loops-trd-$(date -u +%Y%m%d-%H%M).dump"
+          pg_dump "$DATABASE_URL" --format=custom --no-owner --no-privileges --schema=public --schema=app --file "$f"
+          gpg --batch --yes --pinentry-mode loopback --passphrase "$PASSPHRASE" --symmetric --cipher-algo AES256 -o "$f.gpg" "$f"
+          rm "$f"
+          ls -lh "$f.gpg"
+          echo "FILE=$f.gpg" >> "$GITHUB_ENV"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.FILE }}
+          path: ${{ env.FILE }}
+          retention-days: 14

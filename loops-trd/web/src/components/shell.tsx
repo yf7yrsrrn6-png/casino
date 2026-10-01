@@ -107,6 +107,7 @@ export function AppShell({ children }: { children: ReactNode }) {
               <NavLink href="/offers">Оголошення</NavLink>
               {isStaffRole(actor) && <NavLink href="/mod">Модерація</NavLink>}
               {isAdminRole(actor) && <NavLink href="/admin">Адмінка</NavLink>}
+              <NavLink href="/help">Довідка</NavLink>
             </nav>
           )}
           <div className="ml-auto flex items-center gap-1.5">
@@ -163,8 +164,11 @@ export function AppShell({ children }: { children: ReactNode }) {
         </nav>
       )}
 
-      <footer className="hidden md:block border-t border-line/60 py-6 text-center text-xs text-ink-3">
-        Loops Trd · закрита P2P-площадка · лише BNB Smart Chain Testnet · тестові кошти
+      <footer className="border-t border-line/60 py-6 pb-24 md:pb-6 text-center text-xs text-ink-3 px-4">
+        Loops Trd · закрита P2P-площадка · лише BNB Smart Chain Testnet · тестові кошти ·{" "}
+        <Link href="/help" className="text-ink-2 hover:text-ink underline-offset-2 hover:underline">
+          Як це працює
+        </Link>
       </footer>
     </div>
   );
