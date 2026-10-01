@@ -42,3 +42,4 @@ next-env.d.ts
 e2e/*.log
 e2e/sessions.json
 e2e/screens/
+!.env.example

@@ -77,7 +77,7 @@ export function Spinner({ size = 18 }: { size?: number }) {
 
 export function Card({ className, children, title, actions }: { className?: string; children: ReactNode; title?: ReactNode; actions?: ReactNode }) {
   return (
-    <section className={cx("rounded-2xl border border-line bg-surface/80 backdrop-blur p-4 sm:p-5", className)}>
+    <section className={cx("min-w-0 rounded-2xl border border-line bg-surface/80 backdrop-blur p-4 sm:p-5", className)}>
       {(title || actions) && (
         <header className="mb-3 flex items-center justify-between gap-3">
           {title && <h2 className="text-[15px] font-semibold text-ink">{title}</h2>}

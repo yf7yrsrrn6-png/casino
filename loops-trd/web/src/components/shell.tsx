@@ -118,9 +118,11 @@ export function AppShell({ children }: { children: ReactNode }) {
                   {actor.display_name ?? shortAddr(actor.wallet_address)}
                   {actor.role !== "member" && <Badge tone="brand">{actor.role === "admin" ? "адмін" : "мод"}</Badge>}
                 </Link>
-                <Button size="sm" variant="ghost" onClick={logout} className="hidden sm:inline-flex">
-                  Вийти
-                </Button>
+                <span className="hidden sm:block">
+                  <Button size="sm" variant="ghost" onClick={logout}>
+                    Вийти
+                  </Button>
+                </span>
               </>
             ) : (
               <Link href="/login">
@@ -174,7 +176,8 @@ export function Guard({ need = "approved", roles, children }: { need?: "auth" | 
   const actor = me.data?.actor;
   useEffect(() => {
     if (me.isSuccess && !actor) router.replace("/login");
-    else if (actor && need === "approved" && !actor.profile_completed) router.replace("/onboarding");
+    // Анкету заповнюють учасники; адміністратор, створений через BOOTSTRAP_ADMIN_WALLET, може працювати без неї.
+    else if (actor && need === "approved" && actor.role === "member" && !actor.profile_completed) router.replace("/onboarding");
   }, [me.isSuccess, actor, router, need]);
 
   if (me.isLoading || !actor) {

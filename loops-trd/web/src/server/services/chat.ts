@@ -13,9 +13,8 @@ export async function listMessages(ctx: Ctx, actor: Actor, dealId: string, after
   return asUser(ctx.db, actor.id, async (tx) =>
     (
       await tx.query(
-        `select m.id, m.sender_id, m.is_system, m.body, m.created_at, p.display_name as sender_name, p.role as sender_role
+        `select m.id, m.sender_id, m.is_system, m.body, m.created_at, pp.display_name as sender_name, pp.role as sender_role
          from deal_messages m left join public_profiles pp on pp.id = m.sender_id
-         left join lateral (select display_name, role from profiles where id = m.sender_id) p on true
          where m.deal_id = $1 and ($2::timestamptz is null or m.created_at > $2::timestamptz)
          order by m.created_at limit 500`,
         [dealId, after ?? null],

@@ -287,6 +287,6 @@ create index staff_actions_created on public.staff_actions (created_at desc);
 
 -- Публічна (для учасників) картка контрагента: без реквізитів.
 create view public.public_profiles as
-  select id, display_name, successful_deals, disputes_count, disputes_lost, created_at
+  select id, display_name, role, successful_deals, disputes_count, disputes_lost, created_at
   from public.profiles
   where status = 'approved';

@@ -124,6 +124,8 @@ describe("Повний цикл угоди", () => {
     await expectHttp(chat.listMessages(ctx, stranger.actor, d.id), 404);
     const msgs = await chat.listMessages(ctx, buyer.actor, d.id);
     expect(msgs.some((m) => String(m.body).includes("4441 1111 2222 3333"))).toBe(true);
+    // Покупець бачить ім'я продавця в чаті (з публічної картки, без реквізитів).
+    expect(msgs.find((m) => m.sender_id === seller.actor.id)?.sender_name).toBe(seller.actor.display_name);
 
     await fund(d);
     await deals.paidIntent(ctx, buyer.actor, buyerMeta, d.id, { senderName: "Іван Петренко" });

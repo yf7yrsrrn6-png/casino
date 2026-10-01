@@ -1,3 +1,5 @@
+> **Loops Trd** — закрита P2P-площадка USDT ⇄ UAH знаходиться в [`loops-trd/`](loops-trd/README.md).
+
 # TakeMyLucky — Casino Platform
 
 A full-stack casino web platform: a React + TypeScript front end and a Node/Express + SQLite

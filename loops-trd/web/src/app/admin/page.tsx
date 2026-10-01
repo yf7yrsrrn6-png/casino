@@ -60,13 +60,13 @@ function Admin() {
         <Card title="Останні угоди">
           <div className="space-y-1">
             {q.data.recent.map((d) => (
-              <Link key={d.id} href={`/deals/${d.id}`} className="flex items-center gap-2 rounded-lg px-2 py-1.5 hover:bg-surface-2 text-[13px]">
-                <span className="tabular font-medium w-24">{fmtNum(d.amount_usdt)} USDT</span>
+              <Link key={d.id} href={`/deals/${d.id}`} className="flex items-center gap-2 rounded-lg px-2 py-1.5 hover:bg-surface-2 text-[13px] min-w-0">
+                <span className="tabular font-medium w-20 sm:w-24 shrink-0">{fmtNum(d.amount_usdt)} USDT</span>
                 <span className="flex-1 truncate text-ink-3">
                   {d.seller_name} → {d.buyer_name}
                 </span>
                 {d.frozen && <Badge tone="bad">❄</Badge>}
-                {d.risk_level && d.risk_level !== "low" && <Badge tone={RISK[d.risk_level].tone}>{d.risk_level}</Badge>}
+                {d.risk_level && d.risk_level !== "low" && <Badge className="hidden sm:inline-flex" tone={RISK[d.risk_level].tone}>{d.risk_level}</Badge>}
                 <Badge tone={DEAL_STATUS[d.status]?.tone}>{DEAL_STATUS[d.status]?.label}</Badge>
                 <span className="hidden sm:block text-[11px] text-ink-3 w-20 text-right">{fmtDate(d.created_at)}</span>
               </Link>
