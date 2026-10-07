@@ -235,7 +235,7 @@ export function KV({ k, v, mono }: { k: ReactNode; v: ReactNode; mono?: boolean 
   return (
     <div className="flex items-start justify-between gap-4 py-2 border-b border-line/60 last:border-0">
       <span className="text-[13px] text-ink-3 shrink-0">{k}</span>
-      <span className={cx("text-[13.5px] text-right text-ink break-all", mono && "font-mono text-[12.5px]")}>{v}</span>
+      <span className={cx("text-[13.5px] text-right text-ink min-w-0", mono ? "font-mono text-[12.5px] break-all" : "break-words")}>{v}</span>
     </div>
   );
 }

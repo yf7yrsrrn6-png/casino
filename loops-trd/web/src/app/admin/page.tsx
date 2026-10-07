@@ -93,8 +93,8 @@ function Admin() {
           ) : (
             <div className="flex items-end gap-1.5 h-40">
               {q.data.daily.map((d) => (
-                <div key={d.day} className="flex-1 flex flex-col items-center gap-1 min-w-0" title={`${d.day}: ${fmtNum(d.volume)} USDT, ${d.deals} угод`}>
-                  <div className="w-full rounded-t-md brand-gradient opacity-90" style={{ height: `${Math.max(3, (Number(d.volume) / max) * 100)}%` }} />
+                <div key={d.day} className="flex-1 h-full flex flex-col items-center justify-end gap-1 min-w-0" title={`${d.day}: ${fmtNum(d.volume)} USDT, ${d.deals} угод`}>
+                  <div className="w-full max-w-10 rounded-t-md brand-gradient opacity-90" style={{ height: `${Math.max(3, (Number(d.volume) / max) * 85)}%` }} />
                   <span className="text-[10px] text-ink-3">{d.day.slice(8)}</span>
                 </div>
               ))}

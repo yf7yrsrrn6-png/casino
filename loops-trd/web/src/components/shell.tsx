@@ -24,7 +24,7 @@ function NavLink({ href, children, mobile }: { href: string; children: ReactNode
     );
   }
   return (
-    <Link href={href} className={cx("h-9 px-3 inline-flex items-center rounded-lg text-[13.5px] font-medium transition", active ? "bg-surface-3 text-ink" : "text-ink-2 hover:text-ink hover:bg-surface-2")}>
+    <Link href={href} className={cx("h-9 px-3 inline-flex items-center rounded-lg text-[13.5px] font-medium whitespace-nowrap transition", active ? "bg-surface-3 text-ink" : "text-ink-2 hover:text-ink hover:bg-surface-2")}>
       {children}
     </Link>
   );
@@ -107,7 +107,7 @@ export function AppShell({ children }: { children: ReactNode }) {
               <NavLink href="/offers">Оголошення</NavLink>
               {isStaffRole(actor) && <NavLink href="/mod">Модерація</NavLink>}
               {isAdminRole(actor) && <NavLink href="/admin">Адмінка</NavLink>}
-              <NavLink href="/help">Довідка</NavLink>
+              {!isStaffRole(actor) && <NavLink href="/help">Довідка</NavLink>}
             </nav>
           )}
           <div className="ml-auto flex items-center gap-1.5">
@@ -115,8 +115,8 @@ export function AppShell({ children }: { children: ReactNode }) {
             <WalletButton />
             {actor ? (
               <>
-                <Link href="/account" className="hidden sm:inline-flex h-9 px-2.5 items-center gap-2 rounded-lg hover:bg-surface-2 text-[13px] text-ink-2">
-                  {actor.display_name ?? shortAddr(actor.wallet_address)}
+                <Link href="/account" className="hidden sm:inline-flex h-9 px-2.5 items-center gap-2 rounded-lg hover:bg-surface-2 text-[13px] text-ink-2 whitespace-nowrap">
+                  <span className="max-w-[8rem] truncate">{actor.display_name ?? shortAddr(actor.wallet_address)}</span>
                   {actor.role !== "member" && <Badge tone="brand">{actor.role === "admin" ? "адмін" : "мод"}</Badge>}
                 </Link>
                 <span className="hidden sm:block">

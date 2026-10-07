@@ -25,9 +25,12 @@ export function DealChat({ dealId, myId, closed }: { dealId: string; myId: strin
   const [text, setText] = useState("");
   const [err, setErr] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  const end = useRef<HTMLDivElement>(null);
+  const box = useRef<HTMLDivElement>(null);
   const count = q.data?.messages.length ?? 0;
-  useEffect(() => end.current?.scrollIntoView({ block: "nearest" }), [count]);
+  // Прокручуємо лише сам чат (не сторінку): на телефоні чат під угодою, і сторінка не має «стрибати» вниз.
+  useEffect(() => {
+    if (box.current) box.current.scrollTop = box.current.scrollHeight;
+  }, [count]);
 
   const send = async () => {
     if (!text.trim()) return;
@@ -46,7 +49,7 @@ export function DealChat({ dealId, myId, closed }: { dealId: string; myId: strin
 
   return (
     <Card title="Чат угоди" className="flex flex-col">
-      <div className="h-80 lg:h-[26rem] overflow-y-auto space-y-2 pr-1 -mr-1">
+      <div ref={box} className="h-80 lg:h-[26rem] overflow-y-auto space-y-2 pr-1 -mr-1">
         {q.data?.messages.map((m) =>
           m.is_system ? (
             <div key={m.id} className="mx-auto max-w-[92%] rounded-xl bg-surface-2 border border-line px-3 py-2 text-xs text-ink-2 text-center">
@@ -72,7 +75,6 @@ export function DealChat({ dealId, myId, closed }: { dealId: string; myId: strin
             </div>
           ),
         )}
-        <div ref={end} />
       </div>
       {closed ? (
         <div className="mt-3 text-xs text-ink-3 text-center">Угоду закрито — чат лише для читання. Номери карток замасковано.</div>

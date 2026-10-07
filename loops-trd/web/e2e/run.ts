@@ -244,7 +244,7 @@ async function main() {
   check(Number(dash.data.stats?.deals_total) === 2, `дашборд: угод ${dash.data.stats?.deals_total}, обсяг ${dash.data.stats?.volume_usdt} USDT`);
   check((await mod.api("/api/admin/dashboard")).status === 403, "модератор не має доступу до дашборду адміна");
 
-  fs.writeFileSync(path.join(ROOT, "e2e", "sessions.json"), JSON.stringify({ base: BASE, admin: admin.cookie, alice: alice.cookie, bob: bob.cookie, mod: mod.cookie, dealId, disputeDealId: d2.id }, null, 2));
+  fs.writeFileSync(path.join(ROOT, "e2e", "sessions.json"), JSON.stringify({ base: BASE, admin: admin.cookie, alice: alice.cookie, bob: bob.cookie, mod: mod.cookie, aliceKey: alice.key, bobKey: bob.key, escrow: ESCROW, usdt: USDT, offerId: offer.data.offer.id, dealId, disputeDealId: d2.id }, null, 2));
   if (process.env.E2E_KEEP_RUNNING) {
     console.log(`\nСервери працюють (${BASE}). Ctrl+C для зупинки.`);
     await new Promise(() => {});
